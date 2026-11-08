@@ -1,0 +1,231 @@
+{
+    "llm": {
+        "model": "gemini-2.5-flash",
+        "params": {
+        },
+        "provider": "google",
+        "connection": "livekit"
+    },
+    "stt": {
+        "model": "nova-3",
+        "params": {
+        },
+        "provider": "deepgram",
+        "connection": "livekit"
+    },
+    "tts": {
+        "model": "sonic-turbo",
+        "speed": 1.0,
+        "params": {
+        },
+        "provider": "cartesia",
+        "voice_id": "f786b574-daa5-4673-aa0c-cbe3e8534c02",
+        "connection": "livekit"
+    },
+    "mode": "pipeline",
+    "name": "Shop assistant",
+    "turn": {
+        "fillers": [
+        ],
+        "backchannel": false,
+        "max_silence_s": 15,
+        "vad_threshold": 0.5,
+        "vad_min_silence_ms": 550,
+        "allow_interruptions": true,
+        "max_call_duration_s": 900,
+        "preemptive_generation": true,
+        "interruption_min_words": 1,
+        "max_endpointing_delay_ms": 650,
+        "min_endpointing_delay_ms": 300
+    },
+    "tools": [
+        {
+            "url": "http://127.0.0.1:8098/products",
+            "auth": null,
+            "kind": "http",
+            "name": "find_products",
+            "filler": {
+                "mode": "auto",
+                "phrases": [
+                ],
+                "delay_ms": 500,
+                "failure_phrase": "Sorry, I couldn't get that just now.",
+                "still_working_after_ms": 4000
+            },
+            "method": "GET",
+            "timeout_s": 8.0,
+            "description": "Search the catalogue by product name or category (for example 'jacket' or 'shoes'). Returns name, price, sizes and whether it is in stock.",
+            "speculative": false,
+            "max_result_chars": 2000,
+            "parameters_schema": {
+                "type": "object",
+                "required": [
+                    "query"
+                ],
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "A product name or category"
+                    }
+                }
+            }
+        },
+        {
+            "url": "http://127.0.0.1:8098/orders/status",
+            "auth": null,
+            "kind": "http",
+            "name": "get_order_status",
+            "filler": {
+                "mode": "auto",
+                "phrases": [
+                ],
+                "delay_ms": 500,
+                "failure_phrase": "Sorry, I couldn't get that just now.",
+                "still_working_after_ms": 4000
+            },
+            "method": "GET",
+            "timeout_s": 8.0,
+            "description": "Look up an order's status, items and delivery estimate. Needs BOTH the order number and the postcode (zip) on the order.",
+            "speculative": false,
+            "max_result_chars": 2000,
+            "parameters_schema": {
+                "type": "object",
+                "required": [
+                    "order_id",
+                    "zip"
+                ],
+                "properties": {
+                    "zip": {
+                        "type": "string",
+                        "description": "The postcode on the order"
+                    },
+                    "order_id": {
+                        "type": "string",
+                        "description": "The order number, digits only"
+                    }
+                }
+            }
+        },
+        {
+            "url": "http://127.0.0.1:8098/returns",
+            "auth": null,
+            "kind": "http",
+            "name": "start_return",
+            "filler": {
+                "mode": "custom",
+                "phrases": [
+                    "Okay, setting up that return."
+                ],
+                "delay_ms": 500,
+                "failure_phrase": "Sorry, I couldn't get that just now.",
+                "still_working_after_ms": 4000
+            },
+            "method": "POST",
+            "timeout_s": 8.0,
+            "description": "Start a return for one item on a delivered order and email a prepaid label. Only call this after the caller has said which item and confirmed they want to return it.",
+            "speculative": false,
+            "max_result_chars": 2000,
+            "parameters_schema": {
+                "type": "object",
+                "required": [
+                    "order_id",
+                    "zip",
+                    "sku"
+                ],
+                "properties": {
+                    "sku": {
+                        "type": "string",
+                        "description": "The item's SKU, taken from the order status or product search"
+                    },
+                    "zip": {
+                        "type": "string"
+                    },
+                    "reason": {
+                        "type": "string",
+                        "description": "Why they are returning it, in a few words"
+                    },
+                    "order_id": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        {
+            "url": "http://127.0.0.1:8098/checkout-links",
+            "auth": null,
+            "kind": "http",
+            "name": "send_checkout_link",
+            "filler": {
+                "mode": "custom",
+                "phrases": [
+                    "Sending that link now."
+                ],
+                "delay_ms": 500,
+                "failure_phrase": "Sorry, I couldn't get that just now.",
+                "still_working_after_ms": 4000
+            },
+            "method": "POST",
+            "timeout_s": 8.0,
+            "description": "Text the caller a secure checkout link for an in-stock product so they can pay on their own phone. Use this instead of taking payment details.",
+            "speculative": false,
+            "max_result_chars": 2000,
+            "parameters_schema": {
+                "type": "object",
+                "required": [
+                    "sku",
+                    "phone"
+                ],
+                "properties": {
+                    "sku": {
+                        "type": "string"
+                    },
+                    "size": {
+                        "type": "string",
+                        "description": "Size, if the product has sizes"
+                    },
+                    "phone": {
+                        "type": "string",
+                        "description": "The caller's mobile number"
+                    }
+                }
+            }
+        }
+    ],
+    "policy": {
+        "redact_pii": true,
+        "record_calls": false,
+        "retention_days": 30,
+        "save_transcripts": true,
+        "recording_disclosure": null
+    },
+    "realtime": null,
+    "languages": [
+        {
+            "stt": null,
+            "tts": null,
+            "code": "en",
+            "greeting": "Hi, you've reached Northwind Outfitters. How can I help you today?"
+        }
+    ],
+    "post_call": {
+        "dispositions": [
+        ],
+        "summary_prompt": null,
+        "extraction_schema": null
+    },
+    "retrieval": {
+        "mode": "prefetch",
+        "top_k": 3
+    },
+    "variables": [
+        {
+            "name": "company",
+            "default": "Northwind Outfitters",
+            "required": false
+        }
+    ],
+    "system_prompt": "You are the phone assistant for {{company}}, an online outdoor-gear store. You are friendly, brief and calm. Today is {{current_time}}.\n\nWhat you can help with:\n1. Order status: where is my order, when will it arrive.\n2. Returns: start a return for a delivered item.\n3. Product questions: availability, price, sizes.\n4. Buying: you cannot take card details over the phone. If someone wants to buy, find the product, confirm the size, and text them a secure checkout link.\n\nHow to handle a call:\n- Greet once, then find out what they need. Ask one question at a time.\n- For anything about an existing order, you need the order number and the postcode on the order before you look it up. Ask for them politely. If the lookup finds nothing, say you could not find an order with those details and offer to try again with the number and postcode; never say which part was wrong.\n- Read order numbers and tracking numbers back digit by digit when you confirm them.\n- Before starting a return, confirm the order, the item and the reason, and tell them a prepaid label will be emailed and the refund arrives within 5 business days of the item reaching us. Returns are accepted within 30 days of delivery, for delivered orders only. If a return is refused, explain the reason from the tool and offer to take a message for the support team.\n- Before texting a checkout link, confirm the product, the size and the mobile number to text.\n- You cannot change an address, cancel an order, apply discounts or process refunds yourself. For those, say a team member will follow up, take their name and best number, and tell them someone will call back within one business day.\n- Never read out or ask for full card numbers, passwords or one-time codes. If a caller starts to, interrupt politely and say you do not need that.\n- When everything is done, ask if there is anything else. If not, thank them and say goodbye.",
+    "default_language": "en",
+    "knowledge_collection_ids": [
+    ]
+}

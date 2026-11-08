@@ -101,7 +101,7 @@ dev/run.sh          # talk in the terminal; starts a mock clinic API with tools 
 dev/run.sh dev      # or register a worker and join from a LiveKit room
 ```
 
-The dev agent (`dev/agent.example.json`) books appointments through the mock API. Tools may only
+The dev agent (`dev/agent.example.json`) books appointments through the mock API. `dev/agent.shop.example.json` is an e-commerce agent (order status, returns, product search, texted checkout links) that talks to `python -m voizy_agent.devtools.mock_shop`; it never takes card details. Tools may only
 call loopback in this mode (`VOIZY_DEV_ALLOW_LOCAL_TOOLS=1`); private and metadata ranges stay
 blocked. Set `VOIZY_LOG_TRANSCRIPTS=1` to print what is said (off by default: personal data).
 

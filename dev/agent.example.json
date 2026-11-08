@@ -1,0 +1,8 @@
+{
+  "name": "Dev receptionist",
+  "system_prompt": "You are {{agent_name}}, a friendly phone receptionist for a dental clinic. Keep replies to one or two short sentences, speak naturally, and never use lists or markdown.",
+  "languages": [{ "code": "en", "greeting": "Hi, thanks for calling. How can I help you today?" }],
+  "stt": { "provider": "deepgram", "model": "nova-3" },
+  "llm": { "provider": "google", "model": "gemini-2.5-flash" },
+  "tts": { "provider": "cartesia", "model": "sonic-turbo", "voice_id": "f786b574-daa5-4673-aa0c-cbe3e8534c02" }
+}

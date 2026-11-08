@@ -1,43 +1,30 @@
-"""Per-turn latency accounting built from LiveKit metrics events.
+"""Per-turn latency accounting from LiveKit's per-message metrics.
 
-A turn is identified by speech_id. The estimated response time is the sum of the stages the
-caller waits through: end-of-utterance delay, every LLM time-to-first-token (more than one when a
-tool is called), tool execution, and TTS time-to-first-byte. It excludes network transit and
-audio playout, so it is a floor on what the caller perceives, not the whole of it.
+LiveKit attaches a metrics report to each conversation message: the user message carries
+transcription and end-of-turn delays, the assistant message carries LLM time-to-first-token, TTS
+time-to-first-byte and an end-to-end figure (user stopped speaking -> agent began responding). We
+pair each assistant message with the user message before it. Tool time is added separately.
+Excludes network delivery to the client, so it is a floor on what the caller perceives.
 """
 
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from collections.abc import Mapping
+from dataclasses import dataclass
+from typing import Any
 
-from livekit.agents import metrics
-
-STAGES = ("eou_delay", "llm_ttft", "tool_time", "tts_ttfb", "total")
+STAGES = ("transcription_delay", "end_of_turn_delay", "llm_ttft", "tool_time", "tts_ttfb", "e2e")
 
 
 @dataclass
 class TurnLatency:
-    speech_id: str
-    eou_delay_s: float | None = None
     transcription_delay_s: float | None = None
-    llm_ttfts_s: list[float] = field(default_factory=list)
-    tool_time_s: float = 0.0
+    end_of_turn_delay_s: float | None = None
+    llm_ttft_s: float | None = None
     tts_ttfb_s: float | None = None
-
-    @property
-    def llm_calls(self) -> int:
-        return len(self.llm_ttfts_s)
-
-    @property
-    def total_s(self) -> float | None:
-        if self.eou_delay_s is None or self.tts_ttfb_s is None or not self.llm_ttfts_s:
-            return None
-        return self.eou_delay_s + sum(self.llm_ttfts_s) + self.tool_time_s + self.tts_ttfb_s
-
-    @property
-    def complete(self) -> bool:
-        return self.total_s is not None
+    e2e_s: float | None = None
+    tool_time_s: float = 0.0
 
 
 def _percentile(sorted_ms: list[float], q: float) -> float:
@@ -46,49 +33,69 @@ def _percentile(sorted_ms: list[float], q: float) -> float:
     return sorted_ms[rank - 1]
 
 
+def _num(report: Mapping[str, Any], key: str) -> float | None:
+    value = report.get(key)
+    return float(value) if isinstance(value, int | float) else None
+
+
 class LatencyRecorder:
     def __init__(self) -> None:
-        self._turns: dict[str, TurnLatency] = {}
+        self._pending: dict[str, float | None] = {}
+        self._turns: list[TurnLatency] = []
 
-    def _turn(self, speech_id: str) -> TurnLatency:
-        return self._turns.setdefault(speech_id, TurnLatency(speech_id))
+    def ingest_message(self, role: str, report: Mapping[str, Any] | None) -> None:
+        """Feed each conversation message's metrics report (role is 'user' or 'assistant')."""
+        report = report or {}
+        if role == "user":
+            self._pending = {
+                "transcription_delay": _num(report, "transcription_delay"),
+                "end_of_turn_delay": _num(report, "end_of_turn_delay"),
+            }
+        elif role == "assistant":
+            e2e = _num(report, "e2e_latency")
+            if e2e is None:  # greetings and interrupted replies have no user turn to measure
+                self._pending = {}
+                return
+            self._turns.append(
+                TurnLatency(
+                    transcription_delay_s=self._pending.get("transcription_delay"),
+                    end_of_turn_delay_s=self._pending.get("end_of_turn_delay"),
+                    llm_ttft_s=_num(report, "llm_node_ttft"),
+                    tts_ttfb_s=_num(report, "tts_node_ttfb"),
+                    e2e_s=e2e,
+                )
+            )
+            self._pending = {}
 
-    def ingest(self, m: metrics.AgentMetrics) -> None:
-        speech_id = getattr(m, "speech_id", None)
-        if not speech_id:
-            return
-        if isinstance(m, metrics.EOUMetrics):
-            turn = self._turn(speech_id)
-            turn.eou_delay_s = m.end_of_utterance_delay
-            turn.transcription_delay_s = m.transcription_delay
-        elif isinstance(m, metrics.LLMMetrics):
-            if not m.cancelled:
-                self._turn(speech_id).llm_ttfts_s.append(m.ttft)
-        elif isinstance(m, metrics.TTSMetrics) and not m.cancelled:
-            turn = self._turn(speech_id)
-            if turn.tts_ttfb_s is None:  # first audio is what the caller waits for
-                turn.tts_ttfb_s = m.ttfb
-
-    def add_tool_time(self, speech_id: str, seconds: float) -> None:
-        self._turn(speech_id).tool_time_s += max(0.0, seconds)
+    def add_tool_time(self, seconds: float) -> None:
+        """Attribute tool execution time to the most recent turn."""
+        if self._turns:
+            self._turns[-1].tool_time_s += max(0.0, seconds)
 
     def turns(self) -> list[TurnLatency]:
-        return list(self._turns.values())
+        return list(self._turns)
 
     def summary(self) -> dict[str, dict[str, float]]:
-        """P50/P95 in milliseconds per stage over completed turns; empty if none yet."""
-        done = [t for t in self._turns.values() if t.complete]
-        if not done:
-            return {}
-        series: dict[str, list[float]] = {
-            "eou_delay": [t.eou_delay_s * 1000 for t in done if t.eou_delay_s is not None],
-            "llm_ttft": [sum(t.llm_ttfts_s) * 1000 for t in done],
-            "tool_time": [t.tool_time_s * 1000 for t in done],
-            "tts_ttfb": [t.tts_ttfb_s * 1000 for t in done if t.tts_ttfb_s is not None],
-            "total": [t.total_s * 1000 for t in done if t.total_s is not None],
-        }
+        """P50/P95 in milliseconds per stage; stages with no samples are omitted."""
+        series: dict[str, list[float]] = {s: [] for s in STAGES}
+        for t in self._turns:
+            for stage, value in (
+                ("transcription_delay", t.transcription_delay_s),
+                ("end_of_turn_delay", t.end_of_turn_delay_s),
+                ("llm_ttft", t.llm_ttft_s),
+                ("tts_ttfb", t.tts_ttfb_s),
+                ("e2e", t.e2e_s),
+                ("tool_time", t.tool_time_s),
+            ):
+                if value is not None:
+                    series[stage].append(value * 1000)
         out: dict[str, dict[str, float]] = {}
         for stage in STAGES:
             xs = sorted(series[stage])
-            out[stage] = {"p50": _percentile(xs, 0.5), "p95": _percentile(xs, 0.95), "n": len(xs)}
+            if xs:
+                out[stage] = {
+                    "p50": _percentile(xs, 0.5),
+                    "p95": _percentile(xs, 0.95),
+                    "n": len(xs),
+                }
         return out

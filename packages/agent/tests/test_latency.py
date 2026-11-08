@@ -1,109 +1,61 @@
 from __future__ import annotations
 
-from livekit.agents import metrics
 from voizy_agent.latency import LatencyRecorder
 
-
-def eou(sid: str, delay: float) -> metrics.EOUMetrics:
-    return metrics.EOUMetrics(
-        timestamp=0.0,
-        end_of_utterance_delay=delay,
-        transcription_delay=0.1,
-        on_user_turn_completed_delay=0.0,
-        speech_id=sid,
-    )
+USER = {"transcription_delay": 0.2, "end_of_turn_delay": 0.4}
 
 
-def llm(sid: str, ttft: float, cancelled: bool = False) -> metrics.LLMMetrics:
-    return metrics.LLMMetrics(
-        label="l",
-        request_id="r",
-        timestamp=0.0,
-        duration=1.0,
-        ttft=ttft,
-        cancelled=cancelled,
-        completion_tokens=1,
-        prompt_tokens=1,
-        prompt_cached_tokens=0,
-        total_tokens=2,
-        tokens_per_second=1.0,
-        speech_id=sid,
-    )
+def assistant(e2e: float | None = 1.0, ttft: float = 0.5, ttfb: float = 0.13) -> dict[str, float]:
+    report = {"llm_node_ttft": ttft, "tts_node_ttfb": ttfb}
+    if e2e is not None:
+        report["e2e_latency"] = e2e
+    return report
 
 
-def tts(sid: str, ttfb: float, cancelled: bool = False) -> metrics.TTSMetrics:
-    return metrics.TTSMetrics(
-        label="t",
-        request_id="r",
-        timestamp=0.0,
-        ttfb=ttfb,
-        duration=1.0,
-        audio_duration=1.0,
-        cancelled=cancelled,
-        characters_count=10,
-        streamed=True,
-        speech_id=sid,
-    )
-
-
-def test_plain_turn_total_is_sum_of_stages() -> None:
+def test_assistant_message_pairs_with_the_preceding_user_message() -> None:
     rec = LatencyRecorder()
-    for m in (eou("s1", 0.30), llm("s1", 0.50), tts("s1", 0.13)):
-        rec.ingest(m)
+    rec.ingest_message("user", USER)
+    rec.ingest_message("assistant", assistant(e2e=1.2))
     (turn,) = rec.turns()
-    assert turn.complete and turn.llm_calls == 1
-    assert abs((turn.total_s or 0) - 0.93) < 1e-9
+    assert (turn.transcription_delay_s, turn.end_of_turn_delay_s) == (0.2, 0.4)
+    assert (turn.llm_ttft_s, turn.tts_ttfb_s, turn.e2e_s) == (0.5, 0.13, 1.2)
 
 
-def test_tool_turn_counts_both_llm_calls_and_tool_time() -> None:
+def test_greeting_without_e2e_is_not_a_turn_and_clears_pending() -> None:
     rec = LatencyRecorder()
-    for m in (eou("s1", 0.3), llm("s1", 0.5), llm("s1", 0.4), tts("s1", 0.1)):
-        rec.ingest(m)
-    rec.add_tool_time("s1", 0.8)
-    (turn,) = rec.turns()
-    assert turn.llm_calls == 2
-    assert abs((turn.total_s or 0) - 2.1) < 1e-9
+    rec.ingest_message("assistant", assistant(e2e=None))
+    rec.ingest_message("user", USER)
+    rec.ingest_message("assistant", assistant(e2e=None))  # interrupted reply
+    rec.ingest_message("assistant", assistant(e2e=0.9))
+    (turn,) = rec.turns()  # stale user metrics must not leak into a later turn
+    assert turn.e2e_s == 0.9 and turn.end_of_turn_delay_s is None
 
 
-def test_incomplete_turn_has_no_total_and_is_excluded_from_summary() -> None:
+def test_missing_or_garbage_metrics_are_tolerated() -> None:
     rec = LatencyRecorder()
-    rec.ingest(eou("s1", 0.3))
-    assert rec.turns()[0].total_s is None and rec.summary() == {}
-
-
-def test_cancelled_llm_and_tts_are_ignored() -> None:
-    rec = LatencyRecorder()
-    for m in (
-        eou("s1", 0.3),
-        llm("s1", 9.0, cancelled=True),
-        llm("s1", 0.5),
-        tts("s1", 7.0, cancelled=True),
-        tts("s1", 0.1),
-    ):
-        rec.ingest(m)
-    (turn,) = rec.turns()
-    assert turn.llm_ttfts_s == [0.5] and turn.tts_ttfb_s == 0.1
-
-
-def test_first_tts_audio_is_what_counts() -> None:
-    rec = LatencyRecorder()
-    for m in (eou("s1", 0.3), llm("s1", 0.5), tts("s1", 0.1), tts("s1", 0.4)):
-        rec.ingest(m)
-    assert rec.turns()[0].tts_ttfb_s == 0.1
-
-
-def test_metrics_without_speech_id_are_ignored() -> None:
-    rec = LatencyRecorder()
-    rec.ingest(llm("", 0.5))
+    rec.ingest_message("user", None)
+    rec.ingest_message("assistant", {"e2e_latency": "fast", "llm_node_ttft": None})
     assert rec.turns() == []
+    rec.ingest_message("assistant", {"e2e_latency": 1})
+    assert rec.turns()[0].e2e_s == 1.0 and rec.turns()[0].llm_ttft_s is None
 
 
-def test_summary_percentiles_in_milliseconds() -> None:
+def test_tool_time_attaches_to_latest_turn_and_ignores_negatives() -> None:
     rec = LatencyRecorder()
-    for i, ttft in enumerate([0.4, 0.5, 0.6, 0.7, 2.0]):
-        sid = f"s{i}"
-        for m in (eou(sid, 0.3), llm(sid, ttft), tts(sid, 0.1)):
-            rec.ingest(m)
+    rec.add_tool_time(1.0)  # no turn yet: ignored
+    rec.ingest_message("user", USER)
+    rec.ingest_message("assistant", assistant())
+    rec.add_tool_time(0.8)
+    rec.add_tool_time(-5)
+    assert rec.turns()[0].tool_time_s == 0.8
+
+
+def test_summary_percentiles_in_milliseconds_and_omits_empty_stages() -> None:
+    rec = LatencyRecorder()
+    assert rec.summary() == {}
+    for e2e in (0.8, 0.9, 1.0, 1.1, 3.0):
+        rec.ingest_message("user", USER)
+        rec.ingest_message("assistant", assistant(e2e=e2e))
     s = rec.summary()
-    assert s["llm_ttft"]["p50"] == 600 and s["llm_ttft"]["p95"] == 2000
-    assert s["total"]["n"] == 5 and s["tool_time"]["p50"] == 0
+    assert s["e2e"] == {"p50": 1000.0, "p95": 3000.0, "n": 5}
+    assert s["llm_ttft"]["p50"] == 500.0 and s["tool_time"]["p50"] == 0.0

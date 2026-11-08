@@ -43,6 +43,8 @@ class TurnConfig(_Strict):
     min_endpointing_delay_ms: int = Field(default=300, ge=0, le=3000)
     max_endpointing_delay_ms: int = Field(default=1500, ge=100, le=6000)
     allow_interruptions: bool = True
+    # Start the LLM before the turn is confirmed over; cuts perceived latency, may waste calls.
+    preemptive_generation: bool = True
     interruption_min_words: int = Field(default=1, ge=0, le=10)
     backchannel: bool = False
     fillers: list[str] = Field(default_factory=list, max_length=10)

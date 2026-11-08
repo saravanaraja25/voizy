@@ -10,7 +10,8 @@ from voizy_api.schemas.base import StrictModel
 
 class InviteCreate(StrictModel):
     email: EmailStr
-    role_id: uuid.UUID
+    # Omitted = Superadmin. Anything else needs custom roles to be enabled.
+    role_id: uuid.UUID | None = None
 
 
 class InviteOut(BaseModel):

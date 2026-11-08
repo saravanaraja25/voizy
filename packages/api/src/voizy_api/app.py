@@ -14,11 +14,13 @@ from voizy_core.security.authz import AuthzError
 from voizy_core.services import accounts
 
 from voizy_api.livekit import LiveKitSettings
+from voizy_api.routes.access import roles_router
 from voizy_api.routes.access import router as access_router
 from voizy_api.routes.agents import router as agents_router
 from voizy_api.routes.auth import router as auth_router
 from voizy_api.routes.catalog import router as catalog_router
 from voizy_api.routes.session import router as session_router
+from voizy_api.routes.team import roles_router as team_roles_router
 from voizy_api.routes.team import router as team_router
 from voizy_api.settings import Settings
 from voizy_api.web.middleware import SecurityMiddleware
@@ -83,6 +85,9 @@ def create_app(
         team_router,
     ):
         app.include_router(router)
+    if cfg.custom_roles:
+        app.include_router(roles_router)
+        app.include_router(team_roles_router)
 
     @app.exception_handler(AuthzError)
     async def authz_error(_: Request, exc: AuthzError) -> JSONResponse:

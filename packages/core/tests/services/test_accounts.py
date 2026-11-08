@@ -17,7 +17,12 @@ HASH = hash_password("correct horse battery staple")
 
 async def do_setup(conn: AsyncConnection, email: str = "owner@example.com") -> acc.SetupResult:
     result = await acc.complete_setup(
-        conn, workspace_name="Acme", email=email, display_name="Owner", password_hash=HASH
+        conn,
+        workspace_name="Acme",
+        email=email,
+        display_name="Owner",
+        password_hash=HASH,
+        seed_templates=True,
     )
     assert result is not None
     return result

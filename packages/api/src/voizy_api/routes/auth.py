@@ -122,6 +122,7 @@ async def setup(body: SetupRequest, request: Request, response: Response) -> MeO
             email=body.email,
             display_name=body.display_name.strip(),
             password_hash=password_hash,
+            seed_templates=settings.custom_roles,
         )
     if result is None:
         raise HTTPException(status.HTTP_409_CONFLICT, "This instance has already been set up.")

@@ -15,6 +15,9 @@ class Settings:
     # Cookies are Secure unless explicitly disabled for plain-http local development.
     cookie_secure: bool = True
     setup_token: str = field(default_factory=lambda: secrets.token_urlsafe(24))
+    # Off by default: a workspace has one role (Superadmin) and invitations are superadmin-only.
+    # On: role templates are seeded, roles can be managed, and invitations may pick a role.
+    custom_roles: bool = False
     # Per-account and per-address failure limits for login-style endpoints.
     email_throttle: Throttle = field(default_factory=lambda: Throttle(5, 900))
     ip_throttle: Throttle = field(default_factory=lambda: Throttle(30, 900))
@@ -26,6 +29,7 @@ class Settings:
         settings = cls(
             cors_origins=origins,
             cookie_secure=os.environ.get("VOIZY_COOKIE_SECURE", "1") != "0",
+            custom_roles=os.environ.get("VOIZY_ENABLE_ROLES") == "1",
         )
         if token := os.environ.get("VOIZY_SETUP_TOKEN"):
             settings.setup_token = token

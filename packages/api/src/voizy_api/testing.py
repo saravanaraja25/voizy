@@ -39,6 +39,7 @@ def app_settings() -> Settings:
         cors_origins=[DASHBOARD_ORIGIN],
         cookie_secure=False,  # tests speak plain http
         setup_token=SETUP_TOKEN,
+        custom_roles=True,  # the existing suites exercise roles; superadmin-only has its own
         email_throttle=Throttle(5, 900),
         ip_throttle=Throttle(30, 900),
     )
@@ -110,4 +111,4 @@ def agent_body(name: str = "Receptionist") -> dict[str, object]:
 async def workspace_a(admin_dsn: str) -> BootstrapResult:
     """A bootstrapped workspace with seeded roles and a superadmin API key."""
     async with await psycopg.AsyncConnection.connect(admin_dsn) as conn:
-        return await bootstrap_workspace(conn, "A")
+        return await bootstrap_workspace(conn, "A", seed_templates=True)

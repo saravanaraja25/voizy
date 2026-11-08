@@ -92,6 +92,7 @@ async def complete_setup(
     email: str,
     display_name: str,
     password_hash: str,
+    seed_templates: bool = False,
 ) -> SetupResult | None:
     """Create the first workspace and its superadmin. Returns None if setup already happened.
 
@@ -105,7 +106,7 @@ async def complete_setup(
         )
         if await cur.fetchone() is None:
             return None
-        ws = await create_workspace_with_roles(conn, workspace_name)
+        ws = await create_workspace_with_roles(conn, workspace_name, seed_templates=seed_templates)
         user_id = uuid.uuid4()
         await _set(conn, "app.creating_email", email)
         await _set(conn, "app.user_id", str(user_id))
@@ -304,6 +305,16 @@ class NewInvite:
     id: uuid.UUID
     token: str  # appears once, inside the link
     expires_at: dt.datetime
+
+
+async def superadmin_role_id(conn: AsyncConnection, workspace_id: uuid.UUID) -> uuid.UUID | None:
+    async with _tx(conn):
+        await _set(conn, "app.workspace_id", str(workspace_id))
+        cur = await conn.execute(
+            "SELECT id FROM roles WHERE name = %s AND is_locked", (SUPERADMIN_ROLE_NAME,)
+        )
+        row = await cur.fetchone()
+    return row[0] if row else None
 
 
 async def create_invite(

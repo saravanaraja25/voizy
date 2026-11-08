@@ -77,6 +77,8 @@ class SeedRole:
 
 _P = Permission
 
+# Role templates. Only the locked Superadmin is created by default (see DEFAULT_ROLES); the rest are
+# offered when custom roles are enabled (VOIZY_ENABLE_ROLES=1).
 SEED_ROLES: tuple[SeedRole, ...] = (
     SeedRole(SUPERADMIN_ROLE_NAME, ALL_PERMISSIONS, is_locked=True),
     SeedRole("Admin", ALL_PERMISSIONS - {_P.ROLES_MANAGE}),
@@ -134,3 +136,6 @@ SEED_ROLES: tuple[SeedRole, ...] = (
         ),
     ),
 )
+
+# What a new workspace starts with. A deliberately small surface for now: one all-powerful role.
+DEFAULT_ROLES: tuple[SeedRole, ...] = tuple(r for r in SEED_ROLES if r.name == SUPERADMIN_ROLE_NAME)

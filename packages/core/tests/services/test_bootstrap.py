@@ -15,7 +15,7 @@ async def test_bootstrap_works_as_unprivileged_role_and_seeds_everything(
     async with await psycopg.AsyncConnection.connect(admin_dsn) as conn:
         await conn.execute("SET ROLE voizy_app")
         await conn.commit()
-        result = await bootstrap_workspace(conn, "Acme")
+        result = await bootstrap_workspace(conn, "Acme", seed_templates=True)
         principal = await authenticate_api_key(conn, result.token)
 
     assert principal is not None and principal.workspace_id == result.workspace_id
@@ -43,3 +43,19 @@ async def test_bootstrap_is_atomic(admin_dsn: str, admin: psycopg.Connection) ->
             await bootstrap_workspace(conn, "")  # violates the name length check
     assert admin.execute("SELECT count(*) FROM workspaces").fetchone() == (0,)
     assert admin.execute("SELECT count(*) FROM roles").fetchone() == (0,)
+
+
+@pytest.mark.asyncio
+async def test_default_workspace_has_only_the_locked_superadmin_role(
+    admin_dsn: str, admin: psycopg.Connection
+) -> None:
+    async with await psycopg.AsyncConnection.connect(admin_dsn) as conn:
+        result = await bootstrap_workspace(conn, "Solo")
+    roles = admin.execute(
+        "SELECT name, is_locked FROM roles WHERE workspace_id = %s", (result.workspace_id,)
+    ).fetchall()
+    assert roles == [("Superadmin", True)]
+    perms = admin.execute(
+        "SELECT count(*) FROM role_permissions WHERE workspace_id = %s", (result.workspace_id,)
+    ).fetchone()
+    assert perms == (len(ALL_PERMISSIONS),)

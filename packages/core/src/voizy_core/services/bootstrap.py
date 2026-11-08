@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 from psycopg import AsyncConnection
 
-from voizy_core.domain.permissions import ALL_PERMISSIONS, SEED_ROLES
+from voizy_core.domain.permissions import ALL_PERMISSIONS, DEFAULT_ROLES, SEED_ROLES
 from voizy_core.security.apikeys import generate_api_key
 
 
@@ -28,13 +28,18 @@ class NewWorkspace:
     role_ids: dict[str, uuid.UUID]
 
 
-async def create_workspace_with_roles(conn: AsyncConnection, name: str) -> NewWorkspace:
-    """Insert a workspace and the seeded roles. The caller owns the surrounding transaction."""
+async def create_workspace_with_roles(
+    conn: AsyncConnection, name: str, *, seed_templates: bool = False
+) -> NewWorkspace:
+    """Insert a workspace and its roles (Superadmin only, unless templates are requested).
+
+    The caller owns the surrounding transaction.
+    """
     workspace_id = uuid.uuid4()
     await conn.execute("SELECT set_config('app.workspace_id', %s, true)", (str(workspace_id),))
     await conn.execute("INSERT INTO workspaces (id, name) VALUES (%s, %s)", (workspace_id, name))
     role_ids: dict[str, uuid.UUID] = {}
-    for role in SEED_ROLES:
+    for role in SEED_ROLES if seed_templates else DEFAULT_ROLES:
         cur = await conn.execute(
             "INSERT INTO roles (workspace_id, name, is_system, is_locked) "
             "VALUES (%s, %s, true, %s) RETURNING id",
@@ -54,11 +59,11 @@ async def create_workspace_with_roles(conn: AsyncConnection, name: str) -> NewWo
 
 
 async def bootstrap_workspace(
-    conn: AsyncConnection, name: str, *, key_name: str = "bootstrap"
+    conn: AsyncConnection, name: str, *, key_name: str = "bootstrap", seed_templates: bool = False
 ) -> BootstrapResult:
     key = generate_api_key()
     async with conn.transaction():
-        ws = await create_workspace_with_roles(conn, name)
+        ws = await create_workspace_with_roles(conn, name, seed_templates=seed_templates)
         workspace_id = ws.id
         cur = await conn.execute(
             "INSERT INTO api_keys (workspace_id, name, prefix, key_hash, permissions) "

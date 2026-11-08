@@ -32,6 +32,8 @@ from voizy_api.web.auth import require
 from voizy_api.web.common import audit, not_found, returned
 
 router = APIRouter(prefix="/v1", tags=["access"])
+# Role management is mounted only when custom roles are enabled (see Settings.custom_roles).
+roles_router = APIRouter(prefix="/v1", tags=["roles"])
 
 
 def _view(role_id: str, name: str, locked: bool, perms: list[str]) -> RoleView:
@@ -63,14 +65,14 @@ async def _set_permissions(
         )
 
 
-@router.get("/permissions", response_model=list[PermissionOut])
+@roles_router.get("/permissions", response_model=list[PermissionOut])
 async def permission_catalog(
     _: Annotated[Principal, Depends(require(Permission.ROLES_MANAGE))],
 ) -> list[PermissionOut]:
     return [PermissionOut(name=p, dangerous=p in DANGEROUS_PERMISSIONS) for p in Permission]
 
 
-@router.get("/roles", response_model=list[RoleOut])
+@roles_router.get("/roles", response_model=list[RoleOut])
 async def list_roles(
     request: Request, p: Annotated[Principal, Depends(require(Permission.ROLES_MANAGE))]
 ) -> list[RoleOut]:
@@ -79,7 +81,7 @@ async def list_roles(
         return [await _role_out(conn, rid) for (rid,) in await cur.fetchall()]
 
 
-@router.post("/roles", response_model=RoleOut, status_code=status.HTTP_201_CREATED)
+@roles_router.post("/roles", response_model=RoleOut, status_code=status.HTTP_201_CREATED)
 async def create_role(
     body: RoleCreate,
     request: Request,
@@ -109,7 +111,7 @@ async def create_role(
         raise HTTPException(status.HTTP_409_CONFLICT, "a role with that name exists") from None
 
 
-@router.put("/roles/{role_id}", response_model=RoleOut)
+@roles_router.put("/roles/{role_id}", response_model=RoleOut)
 async def update_role(
     role_id: uuid.UUID,
     body: RoleUpdate,
@@ -142,7 +144,7 @@ async def update_role(
         raise HTTPException(status.HTTP_409_CONFLICT, "a role with that name exists") from None
 
 
-@router.delete("/roles/{role_id}", status_code=status.HTTP_204_NO_CONTENT)
+@roles_router.delete("/roles/{role_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_role(
     role_id: uuid.UUID,
     request: Request,

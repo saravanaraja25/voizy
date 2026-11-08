@@ -80,3 +80,16 @@ def test_api_key_cannot_exceed_creator() -> None:
     with pytest.raises(AuthzError):
         api_key_permissions(BUILDER.permissions, frozenset({P.PROVIDER_KEYS_MANAGE}))
     assert api_key_permissions(BUILDER.permissions, frozenset({P.AGENTS_READ})) == {P.AGENTS_READ}
+
+
+def test_default_roles_are_just_the_superadmin_and_templates_stay_available() -> None:
+    from voizy_core.domain.permissions import DEFAULT_ROLES
+
+    assert [r.name for r in DEFAULT_ROLES] == ["Superadmin"]
+    assert DEFAULT_ROLES[0].permissions == ALL_PERMISSIONS and DEFAULT_ROLES[0].is_locked
+    assert {r.name for r in SEED_ROLES} - {"Superadmin"} == {
+        "Admin",
+        "Builder",
+        "Operator",
+        "Analyst",
+    }

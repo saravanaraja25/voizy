@@ -35,6 +35,8 @@ from voizy_api.web.auth import check_origin, require
 from voizy_api.web.common import audit, not_found
 
 router = APIRouter(prefix="/v1", tags=["team"])
+# Mounted only when custom roles are enabled (see Settings.custom_roles).
+roles_router = APIRouter(prefix="/v1", tags=["team"])
 Manager = Annotated[Principal, Depends(require(Permission.MEMBERS_MANAGE))]
 
 
@@ -53,7 +55,7 @@ def _member(m: accounts.Member) -> MemberOut:
 # ---- members ---------------------------------------------------------------------------------
 
 
-@router.get("/assignable-roles", response_model=list[AssignableRole])
+@roles_router.get("/assignable-roles", response_model=list[AssignableRole])
 async def assignable_roles(request: Request, p: Manager) -> list[AssignableRole]:
     """Roles the caller may hand out: never one that carries a permission the caller lacks."""
     async with workspace_tx(request.app.state.pool, p.workspace_id) as conn:
@@ -93,7 +95,7 @@ async def _target_and_views(
     return dict(views), current
 
 
-@router.put("/members/{user_id}/role", response_model=MemberOut)
+@roles_router.put("/members/{user_id}/role", response_model=MemberOut)
 async def change_member_role(
     user_id: uuid.UUID, body: MemberRoleChange, request: Request, p: Manager
 ) -> MemberOut:
@@ -140,13 +142,24 @@ async def remove_member(user_id: uuid.UUID, request: Request, p: Manager) -> Non
 async def create_invite(body: InviteCreate, request: Request, p: Manager) -> InviteCreated:
     pool = request.app.state.pool
     async with pool.connection() as conn:
-        role = await accounts.role_view(conn, p.workspace_id, body.role_id)
+        superadmin = await accounts.superadmin_role_id(conn, p.workspace_id)
+    if superadmin is None:
+        raise HTTPException(
+            status.HTTP_500_INTERNAL_SERVER_ERROR, "workspace has no superadmin role"
+        )
+    role_id = body.role_id or superadmin
+    if role_id != superadmin and not request.app.state.settings.custom_roles:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, "Only superadmin invitations are available."
+        )
+    async with pool.connection() as conn:
+        role = await accounts.role_view(conn, p.workspace_id, role_id)
     if role is None:
         raise not_found()
     check_can_assign_role(p.permissions, role)  # cannot invite someone above your own rank
     try:
         async with pool.connection() as conn:
-            invite = await accounts.create_invite(conn, p, email=body.email, role_id=body.role_id)
+            invite = await accounts.create_invite(conn, p, email=body.email, role_id=role_id)
     except psycopg.errors.UniqueViolation:
         raise HTTPException(
             status.HTTP_409_CONFLICT, "There is already a pending invitation for that email."

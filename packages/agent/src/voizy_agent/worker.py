@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import time
+import uuid
 
 from livekit import agents, rtc
 from livekit.agents import (
@@ -31,6 +32,12 @@ from voizy_agent.config_source import (
     ConfigNotFoundError,
     load_config,
     load_dev_config,
+)
+from voizy_agent.credentials import (
+    DbSecretResolver,
+    LiveKitCredentials,
+    load_livekit,
+    secret_box_from_env,
 )
 from voizy_agent.http_tool import HttpToolExecutor
 from voizy_agent.instructions import build_instructions
@@ -78,25 +85,40 @@ def prewarm(proc: agents.JobProcess) -> None:
 server.setup_fnc = prewarm
 
 
-async def _config_for(ctx: JobContext) -> AgentConfig:
+async def _pool_for() -> AsyncConnectionPool:
     global _pool  # noqa: PLW0603 - one pool per worker process
+    if _pool is None:
+        _pool = await open_pool(os.environ["VOIZY_DATABASE_URL"])
+    return _pool
+
+
+async def _config_for(ctx: JobContext) -> tuple[AgentConfig, uuid.UUID | None]:
+    """The agent's config, and the workspace it belongs to (None for a local dev config file)."""
     target = parse_dispatch(ctx.job.metadata)
     if target is not None:
-        if _pool is None:
-            _pool = await open_pool(os.environ["VOIZY_DATABASE_URL"])
-        return await load_config(_pool, target)
+        return await load_config(await _pool_for(), target), target.workspace_id
     dev = os.environ.get("VOIZY_DEV_AGENT_CONFIG")  # local development / playground only
     if dev:
-        return load_dev_config(dev)
+        return load_dev_config(dev), None
     raise ConfigNotFoundError("no dispatch metadata and VOIZY_DEV_AGENT_CONFIG is not set")
 
 
 @server.rtc_session(agent_name=os.environ.get("VOIZY_AGENT_NAME", AGENT_WORKER_NAME))
 async def entrypoint(ctx: JobContext) -> None:
-    cfg = await _config_for(ctx)
-    tools = build_http_tools(cfg, HttpToolExecutor(_tool_policy()))
+    cfg, workspace_id = await _config_for(ctx)
+    resolver: DbSecretResolver | None = None
+    livekit: LiveKitCredentials | None = None
+    box = secret_box_from_env()
+    if workspace_id is not None and box is not None:
+        pool = await _pool_for()
+        resolver = DbSecretResolver(pool, box, workspace_id)
+        livekit = await load_livekit(pool, box, workspace_id)
+    tools = build_http_tools(cfg, HttpToolExecutor(_tool_policy()), resolver)
     agent_tools: list[llm.Tool | llm.Toolset] = [*tools]
-    parts = build_pipeline(cfg, InferenceProviders())
+    providers = (
+        InferenceProviders(livekit.api_key, livekit.api_secret) if livekit else InferenceProviders()
+    )
+    parts = build_pipeline(cfg, providers)
     recorder = LatencyRecorder()
 
     # Loading a model is blocking work; keep it off the event loop that carries call audio.

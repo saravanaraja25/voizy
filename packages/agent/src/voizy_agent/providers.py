@@ -10,7 +10,8 @@ import typing
 from dataclasses import dataclass
 from typing import Protocol
 
-from livekit.agents import inference
+from livekit.agents import NOT_GIVEN, inference
+from livekit.agents.types import NotGivenOr
 from voizy_core.domain.agent_config import AgentConfig, ProviderChoice, VoiceChoice
 
 
@@ -53,7 +54,18 @@ class Providers(Protocol):
 
 
 class InferenceProviders:
-    """Builds components backed by LiveKit Inference (one LiveKit key for all three)."""
+    """Builds components backed by LiveKit Inference (one LiveKit key for all three).
+
+    Credentials come from the workspace's stored LiveKit connection when given, otherwise from
+    the environment (the SDK's default).
+    """
+
+    def __init__(self, api_key: str | None = None, api_secret: str | None = None) -> None:
+        both = bool(api_key and api_secret)
+        self._plain_key = api_key if both else None  # the LLM class wants str | None
+        self._plain_secret = api_secret if both else None
+        self._key: NotGivenOr[str] = api_key if both and api_key else NOT_GIVEN
+        self._secret: NotGivenOr[str] = api_secret if both and api_secret else NOT_GIVEN
 
     def validate(self, cfg: AgentConfig) -> None:
         if cfg.stt is not None:
@@ -65,15 +77,25 @@ class InferenceProviders:
 
     def stt(self, choice: ProviderChoice, language: str) -> inference.STT:
         _check("STT", model_id(choice), STT_MODELS)
-        return inference.STT(model_id(choice), language=language)
+        return inference.STT(
+            model_id(choice), language=language, api_key=self._key, api_secret=self._secret
+        )
 
     def llm(self, choice: ProviderChoice) -> inference.LLM:
         _check("LLM", model_id(choice), LLM_MODELS)
-        return inference.LLM(model_id(choice))
+        return inference.LLM(
+            model_id(choice), api_key=self._plain_key, api_secret=self._plain_secret
+        )
 
     def tts(self, choice: VoiceChoice, language: str) -> inference.TTS:
         _check("TTS", model_id(choice), TTS_MODELS)
-        return inference.TTS(model_id(choice), voice=choice.voice_id, language=language)
+        return inference.TTS(
+            model_id(choice),
+            voice=choice.voice_id,
+            language=language,
+            api_key=self._key,
+            api_secret=self._secret,
+        )
 
 
 @dataclass(frozen=True)

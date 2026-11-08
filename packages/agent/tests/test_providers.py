@@ -110,3 +110,16 @@ def test_inference_providers_construct_real_components_offline(
     assert type(parts.stt).__name__ == "STT"
     assert type(parts.llm).__name__ == "LLM"
     assert type(parts.tts).__name__ == "TTS"
+
+
+def test_explicit_workspace_credentials_are_used_without_any_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    for var in ("LIVEKIT_URL", "LIVEKIT_API_KEY", "LIVEKIT_API_SECRET"):
+        monkeypatch.delenv(var, raising=False)
+    # With no environment, the SDK refuses to build a component unless it is handed credentials.
+    with pytest.raises(ValueError, match="api_key"):
+        build_pipeline(make_config(), InferenceProviders())
+    parts = build_pipeline(make_config(), InferenceProviders("APIkey123", "s" * 40))
+    assert type(parts.stt).__name__ == "STT" and type(parts.tts).__name__ == "TTS"
+    assert type(parts.llm).__name__ == "LLM"

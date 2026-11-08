@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from voizy_core.db.pool import workspace_tx
 from voizy_core.domain.dispatch import DispatchTarget
 from voizy_core.domain.permissions import Permission
+from voizy_core.services import accounts
 from voizy_core.services.auth import Principal
 
 from voizy_api.livekit import mint_test_session
@@ -21,14 +22,21 @@ router = APIRouter(prefix="/v1", tags=["session"])
 
 @router.get("/me", response_model=MeOut)
 async def me(request: Request, p: Annotated[Principal, Depends(current_principal)]) -> MeOut:
-    async with workspace_tx(request.app.state.pool, p.workspace_id) as conn:
+    pool = request.app.state.pool
+    async with pool.connection() as conn:
+        who = await accounts.who_am_i(conn, p)
+    async with workspace_tx(pool, p.workspace_id) as conn:
         cur = await conn.execute("SELECT name FROM workspaces WHERE id = %s", (p.workspace_id,))
         name = returned(await cur.fetchone())[0]
     return MeOut(
         workspace_id=p.workspace_id,
         workspace_name=name,
-        api_key_id=p.api_key_id,
         permissions=sorted(p.permissions),
+        api_key_id=p.api_key_id,
+        user_id=p.user_id,
+        email=who.email if who else None,
+        display_name=who.display_name if who else None,
+        csrf_token=p.csrf_token,
     )
 
 

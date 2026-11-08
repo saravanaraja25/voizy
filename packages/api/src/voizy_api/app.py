@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -10,32 +11,44 @@ from fastapi.responses import JSONResponse
 from psycopg_pool import AsyncConnectionPool
 from voizy_core.db.pool import open_pool
 from voizy_core.security.authz import AuthzError
+from voizy_core.services import accounts
 
 from voizy_api.livekit import LiveKitSettings
 from voizy_api.routes.access import router as access_router
 from voizy_api.routes.agents import router as agents_router
+from voizy_api.routes.auth import router as auth_router
 from voizy_api.routes.catalog import router as catalog_router
 from voizy_api.routes.session import router as session_router
+from voizy_api.routes.team import router as team_router
+from voizy_api.settings import Settings
 from voizy_api.web.middleware import SecurityMiddleware
 
-
-def _env_origins() -> list[str]:
-    raw = os.environ.get("VOIZY_CORS_ORIGINS", "")
-    return [o.strip() for o in raw.split(",") if o.strip() and o.strip() != "*"]
+log = logging.getLogger("uvicorn.error")
 
 
 def create_app(
     pool: AsyncConnectionPool | None = None,
     livekit: LiveKitSettings | None = None,
     cors_origins: list[str] | None = None,
+    settings: Settings | None = None,
 ) -> FastAPI:
-    """Pass a pool in tests; in production the pool is opened from VOIZY_DATABASE_URL."""
+    """Pass a pool (and settings) in tests; in production both come from the environment."""
+    cfg = settings or Settings.from_env()
+    if cors_origins is not None:
+        cfg.cors_origins = [o for o in cors_origins if o != "*"]
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         if pool is None:
             app.state.pool = await open_pool(os.environ["VOIZY_DATABASE_URL"])
         try:
+            async with app.state.pool.connection() as conn:
+                needs_setup = await accounts.setup_needed(conn)
+            if needs_setup:
+                # Whoever can read the server log owns first-run setup; nobody else can claim it.
+                log.warning(
+                    "FIRST-RUN SETUP: open the dashboard and use setup token: %s", cfg.setup_token
+                )
             yield
         finally:
             if pool is None:
@@ -47,23 +60,29 @@ def create_app(
     )
     if pool is not None:
         app.state.pool = pool
+    app.state.settings = cfg
     app.state.livekit = livekit if livekit is not None else LiveKitSettings.from_env()
     app.add_middleware(SecurityMiddleware)
-    origins = cors_origins if cors_origins is not None else _env_origins()
-    if origins:
-        # Explicit allowlist only. Auth is a bearer header, never cookies, so no credentials.
+    if cfg.cors_origins:
+        # Explicit allowlist, never a wildcard: credentials (the session cookie) are allowed, so
+        # only origins we list may read responses. CSRF is enforced separately on every write.
         app.add_middleware(
             CORSMiddleware,
-            allow_origins=origins,
-            allow_credentials=False,
+            allow_origins=cfg.cors_origins,
+            allow_credentials=True,
             allow_methods=["GET", "POST", "PUT", "DELETE"],
-            allow_headers=["Authorization", "Content-Type"],
+            allow_headers=["Authorization", "Content-Type", "X-CSRF-Token"],
             max_age=600,
         )
-    app.include_router(agents_router)
-    app.include_router(session_router)
-    app.include_router(catalog_router)
-    app.include_router(access_router)
+    for router in (
+        auth_router,
+        agents_router,
+        session_router,
+        catalog_router,
+        access_router,
+        team_router,
+    ):
+        app.include_router(router)
 
     @app.exception_handler(AuthzError)
     async def authz_error(_: Request, exc: AuthzError) -> JSONResponse:

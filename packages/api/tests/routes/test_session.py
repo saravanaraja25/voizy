@@ -162,7 +162,7 @@ def test_settings_repr_hides_the_secret() -> None:
     assert SETTINGS.api_secret not in repr(SETTINGS) and "redacted" in repr(SETTINGS)
 
 
-async def test_cors_allows_only_listed_origins_and_never_credentials(
+async def test_cors_allows_credentials_only_for_listed_origins(
     pool: AsyncConnectionPool,
 ) -> None:
     app = create_app(pool, livekit=SETTINGS, cors_origins=["http://localhost:5173"])
@@ -176,11 +176,14 @@ async def test_cors_allows_only_listed_origins_and_never_credentials(
             },
         )
         assert ok.headers["access-control-allow-origin"] == "http://localhost:5173"
-        assert "access-control-allow-credentials" not in ok.headers
+        # The session cookie is a credential, so it is allowed only for origins we list.
+        assert ok.headers["access-control-allow-credentials"] == "true"
+        assert "x-csrf-token" in ok.headers["access-control-allow-headers"].lower()
         bad = await c.options(
             "/v1/agents",
             headers={"Origin": "http://evil.example", "Access-Control-Request-Method": "GET"},
         )
+        # Without Allow-Origin the browser refuses to let the page read the response.
         assert "access-control-allow-origin" not in bad.headers
 
 

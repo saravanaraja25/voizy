@@ -29,7 +29,8 @@ def main() -> int:
             "WHERE latency ? 'e2e' AND at > now() - make_interval(days => %s)",
             (days,),
         ).fetchone()
-        assert total is not None
+        if total is None:
+            return 1
         print(f"{total[0]} agent turns over {total[1]} calls, last {days} days\n")
         print("| stage | n | p50 ms | p95 ms | max ms |")
         print("|---|---:|---:|---:|---:|")
@@ -41,8 +42,7 @@ def main() -> int:
                 "WHERE latency ? %s AND at > now() - make_interval(days => %s)) t",
                 (stage, stage, days),
             ).fetchone()
-            assert row is not None
-            if row[0]:
+            if row is not None and row[0]:
                 print(f"| {stage} | {row[0]} | {row[1]:.0f} | {row[2]:.0f} | {row[3]:.0f} |")
     return 0
 

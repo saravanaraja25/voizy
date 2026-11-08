@@ -91,6 +91,11 @@ async def complete_setup(
         if await cur.fetchone() is None:
             return None
         ws = await create_workspace_with_roles(conn, workspace_name, seed_templates=seed_templates)
+        await conn.execute(
+            "UPDATE instance_settings SET primary_workspace_id = %s "
+            "WHERE primary_workspace_id IS NULL",
+            (ws.id,),
+        )
         user_id = uuid.uuid4()
         await _set(conn, "app.creating_email", email)
         await _set(conn, "app.user_id", str(user_id))

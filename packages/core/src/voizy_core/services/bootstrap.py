@@ -65,6 +65,11 @@ async def bootstrap_workspace(
     async with conn.transaction():
         ws = await create_workspace_with_roles(conn, name, seed_templates=seed_templates)
         workspace_id = ws.id
+        await conn.execute(
+            "UPDATE instance_settings SET primary_workspace_id = %s "
+            "WHERE primary_workspace_id IS NULL",
+            (workspace_id,),
+        )
         cur = await conn.execute(
             "INSERT INTO api_keys (workspace_id, name, prefix, key_hash, permissions) "
             "VALUES (%s, %s, %s, %s, %s) RETURNING id",

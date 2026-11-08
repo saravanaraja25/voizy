@@ -186,3 +186,21 @@ def test_setup_can_be_claimed_once_and_never_reopened(
         conn.commit()
         with pytest.raises(psycopg.errors.RaiseException, match="only be completed once"):
             conn.execute("UPDATE instance_settings SET setup_completed_at = NULL")
+
+
+def test_primary_workspace_is_set_once_and_readable_without_a_tenant_context(
+    admin_dsn: str, admin: psycopg.Connection, two_workspaces: tuple[uuid.UUID, uuid.UUID]
+) -> None:
+    a, b = two_workspaces
+    with app_conn(admin_dsn) as conn:
+        # No workspace context at all: instance settings are deliberately outside tenant RLS.
+        assert conn.execute("SELECT primary_workspace_id FROM instance_settings").fetchone() == (
+            None,
+        )
+        assert (
+            conn.execute("UPDATE instance_settings SET primary_workspace_id = %s", (a,)).rowcount
+            == 1
+        )
+        conn.commit()
+        with pytest.raises(psycopg.errors.RaiseException, match="only be set once"):
+            conn.execute("UPDATE instance_settings SET primary_workspace_id = %s", (b,))

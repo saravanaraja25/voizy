@@ -51,10 +51,14 @@ def admin(admin_dsn: str) -> Iterator[psycopg.Connection]:
             "TRUNCATE audit_log, agent_versions, agents, secrets, api_keys, memberships, "
             "role_permissions, roles, workspaces, users CASCADE"
         )
-        # Setup can be claimed only once in production; tests reopen it (trigger is superuser-only).
-        conn.execute("ALTER TABLE instance_settings DISABLE TRIGGER instance_settings_once")
-        conn.execute("UPDATE instance_settings SET setup_completed_at = NULL")
-        conn.execute("ALTER TABLE instance_settings ENABLE TRIGGER instance_settings_once")
+        # TRUNCATE ... CASCADE also empties instance_settings (it references workspaces), so put
+        # back its single row. Production never truncates; setup is claimable once, tests reopen it.
+        conn.execute("INSERT INTO instance_settings DEFAULT VALUES ON CONFLICT DO NOTHING")
+        conn.execute("ALTER TABLE instance_settings DISABLE TRIGGER USER")
+        conn.execute(
+            "UPDATE instance_settings SET setup_completed_at = NULL, primary_workspace_id = NULL"
+        )
+        conn.execute("ALTER TABLE instance_settings ENABLE TRIGGER USER")
 
 
 @pytest.fixture

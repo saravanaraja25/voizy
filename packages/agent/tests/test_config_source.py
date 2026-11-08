@@ -8,11 +8,12 @@ import psycopg
 import pytest
 from voizy_agent.config_source import (
     ConfigNotFoundError,
+    load_config,
     load_dev_config,
     load_published_config,
-    parse_job_metadata,
 )
 from voizy_core.db.pool import open_pool
+from voizy_core.domain.dispatch import DispatchTarget
 
 WS, AG = uuid.uuid4(), uuid.uuid4()
 CONFIG = {
@@ -22,30 +23,6 @@ CONFIG = {
     "llm": {"provider": "google", "model": "gemini-2.5-flash"},
     "tts": {"provider": "cartesia", "model": "sonic-3", "voice_id": "v"},
 }
-
-
-def test_parse_job_metadata_accepts_only_two_uuids() -> None:
-    ok = json.dumps({"workspace_id": str(WS), "agent_id": str(AG)})
-    assert parse_job_metadata(ok) == (WS, AG)
-
-
-@pytest.mark.parametrize(
-    "raw",
-    [
-        None,
-        "",
-        "not json",
-        "[]",
-        "null",
-        "{}",
-        json.dumps({"workspace_id": str(WS)}),
-        json.dumps({"workspace_id": str(WS), "agent_id": "nope"}),
-        json.dumps({"workspace_id": str(WS), "agent_id": str(AG), "extra": 1}),
-        json.dumps({"workspace_id": 5, "agent_id": [1]}),
-    ],
-)
-def test_parse_job_metadata_rejects_everything_else(raw: str | None) -> None:
-    assert parse_job_metadata(raw) is None
 
 
 def test_dev_config_loading(tmp_path: Path) -> None:
@@ -106,5 +83,32 @@ async def test_draft_only_agent_has_no_config(
     try:
         with pytest.raises(ConfigNotFoundError):
             await load_published_config(pool, a, agent)
+    finally:
+        await pool.close()
+
+
+@pytest.mark.asyncio
+async def test_named_version_loads_drafts_for_tests_but_stays_workspace_scoped(
+    admin_dsn: str, admin: psycopg.Connection, two_workspaces: tuple[uuid.UUID, uuid.UUID]
+) -> None:
+    a, b = two_workspaces
+    agent = uuid.uuid4()
+    admin.execute("INSERT INTO agents (workspace_id, id, name) VALUES (%s, %s, 'x')", (a, agent))
+    for ver, name in ((1, "published-one"), (2, "draft-two")):
+        admin.execute(
+            "INSERT INTO agent_versions (workspace_id, agent_id, version, config) "
+            "VALUES (%s, %s, %s, %s::jsonb)",
+            (a, agent, ver, json.dumps({**CONFIG, "name": name})),
+        )
+    pool = await open_pool(admin_dsn)
+    try:
+        draft = await load_config(pool, DispatchTarget(a, agent, 2))
+        assert draft.name == "draft-two"
+        with pytest.raises(ConfigNotFoundError):  # no published version, none requested
+            await load_config(pool, DispatchTarget(a, agent))
+        with pytest.raises(ConfigNotFoundError):  # version that does not exist
+            await load_config(pool, DispatchTarget(a, agent, 9))
+        with pytest.raises(ConfigNotFoundError):  # wrong workspace sees nothing
+            await load_config(pool, DispatchTarget(b, agent, 2))
     finally:
         await pool.close()

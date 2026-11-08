@@ -34,3 +34,4 @@ strict = true
 testpaths = ["packages"]
 addopts = "--import-mode=importlib"
 asyncio_default_fixture_loop_scope = "function"
+asyncio_mode = "auto"

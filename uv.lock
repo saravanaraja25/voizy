@@ -3063,6 +3063,7 @@ version = "0.1.0"
 source = { editable = "packages/api" }
 dependencies = [
     { name = "fastapi" },
+    { name = "livekit-api" },
     { name = "uvicorn", extra = ["standard"] },
     { name = "voizy-core" },
 ]
@@ -3070,6 +3071,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "fastapi", specifier = ">=0.115" },
+    { name = "livekit-api", specifier = ">=1.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.32" },
     { name = "voizy-core", editable = "packages/core" },
 ]

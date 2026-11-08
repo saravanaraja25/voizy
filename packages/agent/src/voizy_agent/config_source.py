@@ -6,7 +6,6 @@ and agent. It is still parsed strictly: only two UUIDs are accepted, nothing els
 
 from __future__ import annotations
 
-import json
 import uuid
 from pathlib import Path
 
@@ -14,39 +13,40 @@ from psycopg_pool import AsyncConnectionPool
 from pydantic import ValidationError
 from voizy_core.db.pool import workspace_tx
 from voizy_core.domain.agent_config import AgentConfig
+from voizy_core.domain.dispatch import DispatchTarget
 
 
 class ConfigNotFoundError(Exception):
     pass
 
 
-def parse_job_metadata(raw: str | None) -> tuple[uuid.UUID, uuid.UUID] | None:
-    """Return (workspace_id, agent_id) or None when there is no usable dispatch metadata."""
-    if not raw:
-        return None
-    try:
-        data = json.loads(raw)
-        if not isinstance(data, dict) or set(data) != {"workspace_id", "agent_id"}:
-            return None
-        return uuid.UUID(str(data["workspace_id"])), uuid.UUID(str(data["agent_id"]))
-    except (ValueError, TypeError):
-        return None
-
-
 async def load_published_config(
     pool: AsyncConnectionPool, workspace_id: uuid.UUID, agent_id: uuid.UUID
 ) -> AgentConfig:
-    async with workspace_tx(pool, workspace_id) as conn:
-        cur = await conn.execute(
-            "SELECT v.config FROM agents a "
-            "JOIN agent_versions v ON v.workspace_id = a.workspace_id "
-            "AND v.id = a.published_version_id "
-            "WHERE a.id = %s AND a.archived_at IS NULL",
-            (agent_id,),
-        )
+    return await load_config(pool, DispatchTarget(workspace_id, agent_id))
+
+
+async def load_config(pool: AsyncConnectionPool, target: DispatchTarget) -> AgentConfig:
+    """The published version, or the exact version named in a (server-signed) test dispatch."""
+    async with workspace_tx(pool, target.workspace_id) as conn:
+        if target.version is None:
+            cur = await conn.execute(
+                "SELECT v.config FROM agents a "
+                "JOIN agent_versions v ON v.workspace_id = a.workspace_id "
+                "AND v.id = a.published_version_id "
+                "WHERE a.id = %s AND a.archived_at IS NULL",
+                (target.agent_id,),
+            )
+        else:
+            cur = await conn.execute(
+                "SELECT v.config FROM agents a "
+                "JOIN agent_versions v ON v.workspace_id = a.workspace_id AND v.agent_id = a.id "
+                "WHERE a.id = %s AND v.version = %s AND a.archived_at IS NULL",
+                (target.agent_id, target.version),
+            )
         row = await cur.fetchone()
     if row is None:
-        raise ConfigNotFoundError("agent not found, archived, or has no published version")
+        raise ConfigNotFoundError("agent or version not found, archived, or not published")
     return AgentConfig.model_validate(row[0])
 
 

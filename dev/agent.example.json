@@ -39,9 +39,7 @@
             "description": "Date as YYYY-MM-DD"
           }
         },
-        "required": [
-          "date"
-        ]
+        "required": ["date"]
       },
       "filler": {
         "mode": "auto",
@@ -73,18 +71,11 @@
             "description": "HH:MM 24-hour, from the offered list"
           }
         },
-        "required": [
-          "name",
-          "phone",
-          "date",
-          "time"
-        ]
+        "required": ["name", "phone", "date", "time"]
       },
       "filler": {
         "mode": "custom",
-        "phrases": [
-          "Okay, booking that now."
-        ],
+        "phrases": ["Okay, booking that now."],
         "delay_ms": 500
       },
       "timeout_s": 8

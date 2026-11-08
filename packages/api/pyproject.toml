@@ -3,7 +3,12 @@ name = "voizy-api"
 version = "0.1.0"
 description = "Voizy control-plane REST API"
 requires-python = ">=3.12"
-dependencies = ["voizy-core", "fastapi>=0.115", "uvicorn[standard]>=0.32"]
+dependencies = [
+  "voizy-core",
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.32",
+  "livekit-api>=1.0",
+]
 
 [tool.uv.sources]
 voizy-core = { workspace = true }

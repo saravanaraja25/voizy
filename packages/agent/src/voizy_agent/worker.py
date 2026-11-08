@@ -22,13 +22,13 @@ from livekit.plugins import silero
 from psycopg_pool import AsyncConnectionPool
 from voizy_core.db.pool import open_pool
 from voizy_core.domain.agent_config import AgentConfig, TurnConfig
+from voizy_core.domain.dispatch import AGENT_WORKER_NAME, parse_dispatch
 from voizy_core.security.ssrf import STRICT, SsrfPolicy
 
 from voizy_agent.config_source import (
     ConfigNotFoundError,
+    load_config,
     load_dev_config,
-    load_published_config,
-    parse_job_metadata,
 )
 from voizy_agent.http_tool import HttpToolExecutor
 from voizy_agent.instructions import build_instructions
@@ -65,18 +65,18 @@ server.setup_fnc = prewarm
 
 async def _config_for(ctx: JobContext) -> AgentConfig:
     global _pool  # noqa: PLW0603 - one pool per worker process
-    ids = parse_job_metadata(ctx.job.metadata)
-    if ids is not None:
+    target = parse_dispatch(ctx.job.metadata)
+    if target is not None:
         if _pool is None:
             _pool = await open_pool(os.environ["VOIZY_DATABASE_URL"])
-        return await load_published_config(_pool, *ids)
+        return await load_config(_pool, target)
     dev = os.environ.get("VOIZY_DEV_AGENT_CONFIG")  # local development / playground only
     if dev:
         return load_dev_config(dev)
     raise ConfigNotFoundError("no dispatch metadata and VOIZY_DEV_AGENT_CONFIG is not set")
 
 
-@server.rtc_session(agent_name=os.environ.get("VOIZY_AGENT_NAME", ""))
+@server.rtc_session(agent_name=os.environ.get("VOIZY_AGENT_NAME", AGENT_WORKER_NAME))
 async def entrypoint(ctx: JobContext) -> None:
     cfg = await _config_for(ctx)
     tools = build_http_tools(cfg, HttpToolExecutor(_tool_policy()))

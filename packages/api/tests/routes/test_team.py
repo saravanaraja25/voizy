@@ -292,3 +292,16 @@ async def test_actions_are_audited_with_the_acting_user(
 @pytest.mark.parametrize("path", ["/v1/members", "/v1/invites"])
 async def test_team_endpoints_require_authentication(client: httpx.AsyncClient, path: str) -> None:
     assert (await client.get(path)).status_code == 401
+
+
+async def test_assignable_roles_are_only_those_the_caller_may_grant(
+    make_client: Maker, fresh_instance: None
+) -> None:
+    boss = await owner(make_client)
+    everything = {r["name"] for r in (await boss.get("/v1/assignable-roles")).json()}
+    assert everything == {"Superadmin", "Admin", "Builder", "Operator", "Analyst"}
+
+    await boss.post("/v1/roles", json={"name": "Recruiter", "permissions": ["members:manage"]})
+    recruiter = await join(make_client, boss, "rec@example.com", "Recruiter")
+    mine = {r["name"] for r in (await recruiter.get("/v1/assignable-roles")).json()}
+    assert mine == {"Recruiter"}  # nothing that carries a permission they lack

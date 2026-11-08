@@ -23,6 +23,7 @@ from voizy_api.routes.auth import _too_many, client_ip, session_response
 from voizy_api.schemas.auth import AcceptInvite
 from voizy_api.schemas.session import MeOut
 from voizy_api.schemas.team import (
+    AssignableRole,
     InviteCreate,
     InviteCreated,
     InviteOut,
@@ -50,6 +51,26 @@ def _member(m: accounts.Member) -> MemberOut:
 
 
 # ---- members ---------------------------------------------------------------------------------
+
+
+@router.get("/assignable-roles", response_model=list[AssignableRole])
+async def assignable_roles(request: Request, p: Manager) -> list[AssignableRole]:
+    """Roles the caller may hand out: never one that carries a permission the caller lacks."""
+    async with workspace_tx(request.app.state.pool, p.workspace_id) as conn:
+        cur = await conn.execute(
+            "SELECT r.id, r.name, "
+            "coalesce(array_agg(rp.permission) FILTER (WHERE rp.permission IS NOT NULL), '{}') "
+            "FROM roles r LEFT JOIN role_permissions rp "
+            "ON rp.workspace_id = r.workspace_id AND rp.role_id = r.id "
+            "GROUP BY r.workspace_id, r.id ORDER BY r.name"
+        )
+        rows = await cur.fetchall()
+    out: list[AssignableRole] = []
+    for rid, name, perms in rows:
+        held = {Permission(x) for x in perms if x in Permission._value2member_map_}
+        if held <= p.permissions:
+            out.append(AssignableRole(id=rid, name=name))
+    return out
 
 
 @router.get("/members", response_model=list[MemberOut])

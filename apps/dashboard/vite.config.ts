@@ -29,7 +29,16 @@ const productionCsp: Plugin = {
 export default defineConfig({
   plugins: [react(), tailwindcss(), productionCsp],
   resolve: { alias: { '@': path.resolve(import.meta.dirname, './src') } },
-  server: { port: 5173, strictPort: true, host: '127.0.0.1' },
+  server: {
+    port: 5173,
+    strictPort: true,
+    host: '127.0.0.1',
+    // One origin for the browser (same as production behind a reverse proxy): cookies stay
+    // first-party and no CORS is involved. Point VOIZY_API_TARGET elsewhere if the API is not here.
+    proxy: {
+      '/v1': { target: process.env.VOIZY_API_TARGET ?? 'http://127.0.0.1:8010', changeOrigin: false },
+    },
+  },
   test: {
     environment: 'jsdom',
     globals: true,

@@ -1,5 +1,5 @@
-import { AudioLines, Bot, ChevronsUpDown, LogOut } from 'lucide-react'
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { AudioLines, Bot, ChevronsUpDown, LogOut, UserCog, Users } from 'lucide-react'
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
   DropdownMenu,
@@ -35,13 +35,22 @@ const NAV = [
     label: 'Agents',
     icon: Bot,
     match: (p: string) => p === '/' || p.startsWith('/agents'),
+    permission: null,
+  },
+  {
+    to: '/team',
+    label: 'Team',
+    icon: Users,
+    match: (p: string) => p.startsWith('/team'),
+    permission: 'members:manage',
   },
 ] as const
 
 export function AppShell() {
-  const { me, signOut } = useAuth()
+  const { me, signOut, can } = useAuth()
   const { pathname } = useLocation()
   const workspace = me?.workspace_name ?? 'Workspace'
+  const person = me?.display_name || me?.email || 'Account'
 
   return (
     <SidebarProvider>
@@ -67,7 +76,7 @@ export function AppShell() {
             <SidebarGroupLabel>Build</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {NAV.map(({ to, label, icon: Icon, match }) => (
+                {NAV.filter((n) => !n.permission || can(n.permission)).map(({ to, label, icon: Icon, match }) => (
                   <SidebarMenuItem key={to}>
                     <SidebarMenuButton
                       isActive={match(pathname)}
@@ -93,23 +102,24 @@ export function AppShell() {
                 >
                   <Avatar className="size-8 rounded-lg">
                     <AvatarFallback className="rounded-lg">
-                      {workspace.slice(0, 2).toUpperCase()}
+                      {person.slice(0, 2).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   <div className="grid flex-1 text-left leading-tight">
-                    <span className="truncate text-sm font-medium">{workspace}</span>
-                    <span className="text-muted-foreground truncate text-xs">
-                      {me?.permissions.length ?? 0} permissions
-                    </span>
+                    <span className="truncate text-sm font-medium">{person}</span>
+                    <span className="text-muted-foreground truncate text-xs">{me?.email}</span>
                   </div>
                   <ChevronsUpDown className="ml-auto size-4" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent side="top" align="start" className="min-w-56">
                   <DropdownMenuGroup>
-                    <DropdownMenuLabel>Signed in with an API key</DropdownMenuLabel>
+                    <DropdownMenuLabel>{me?.email}</DropdownMenuLabel>
                   </DropdownMenuGroup>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={signOut}>
+                  <DropdownMenuItem render={<Link to="/account" />}>
+                    <UserCog /> Account
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => void signOut()}>
                     <LogOut /> Sign out
                   </DropdownMenuItem>
                 </DropdownMenuContent>

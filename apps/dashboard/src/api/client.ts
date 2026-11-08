@@ -1,8 +1,14 @@
 import type {
   AgentConfig,
   AgentOut,
+  AssignableRole,
   CatalogOut,
+  InviteCreated,
+  InviteOut,
+  InvitePreview,
   MeOut,
+  MemberOut,
+  SetupRequest,
   TestSessionOut,
   VersionOut,
   VersionSummary,
@@ -41,7 +47,10 @@ export function describeError(error: unknown): string {
       const errs = Object.entries(fieldErrors(error))
       if (errs.length) return errs.map(([k, v]) => (k ? `${k}: ${v}` : v)).join('; ')
     }
-    if (error.status === 403) return 'You do not have permission to do that.'
+    // 403 carries real reasons now (wrong password, rank rules, bad setup token): show them.
+    if (error.status === 403 && error.message === 'missing permission') {
+      return 'You do not have permission to do that.'
+    }
     return error.message
   }
   return error instanceof Error ? error.message : 'Something went wrong.'
@@ -49,19 +58,34 @@ export function describeError(error: unknown): string {
 
 export type Client = ReturnType<typeof createClient>
 
-export function createClient(baseUrl: string, key: string, onUnauthorized?: () => void) {
-  const root = baseUrl.replace(/\/+$/, '')
+export interface ClientOptions {
+  /** Empty means same origin (the dev server proxies /v1; production sits behind one proxy). */
+  baseUrl?: string
+  /** Extra headers, e.g. an API key for scripts and tests. Browsers use the session cookie. */
+  headers?: Record<string, string>
+  /** The current session's CSRF token, sent on every write. */
+  getCsrf?: () => string | null
+  /** Called when the server says the session is gone. */
+  onUnauthorized?: () => void
+}
+
+const WRITES = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
+
+export function createClient(options: ClientOptions = {}) {
+  const root = (options.baseUrl ?? '').replace(/\/+$/, '')
 
   async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+    const headers: Record<string, string> = { ...options.headers }
+    if (body !== undefined) headers['Content-Type'] = 'application/json'
+    const csrf = options.getCsrf?.()
+    if (WRITES.has(method) && csrf) headers['X-CSRF-Token'] = csrf
+
     const res = await fetch(`${root}${path}`, {
       method,
-      headers: {
-        Authorization: `Bearer ${key}`,
-        ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
-      },
+      headers,
+      credentials: 'include',
       body: body === undefined ? undefined : JSON.stringify(body),
     })
-    if (res.status === 401) onUnauthorized?.()
     if (res.status === 204) return undefined as T
     const text = await res.text()
     let data: unknown
@@ -72,13 +96,42 @@ export function createClient(baseUrl: string, key: string, onUnauthorized?: () =
     }
     if (!res.ok) {
       const detail = (data as { detail?: unknown } | undefined)?.detail ?? data
+      if (res.status === 401 && !path.startsWith('/v1/auth/') && path !== '/v1/me') {
+        options.onUnauthorized?.()
+      }
       throw new ApiError(res.status, detail)
     }
     return data as T
   }
 
   return {
+    // session
+    setupStatus: () => request<{ needs_setup: boolean }>('GET', '/v1/setup/status'),
+    setup: (body: SetupRequest) => request<MeOut>('POST', '/v1/setup', body),
+    login: (email: string, password: string) =>
+      request<MeOut>('POST', '/v1/auth/login', { email, password }),
+    logout: () => request<{ detail: string }>('POST', '/v1/auth/logout'),
+    changePassword: (current_password: string, new_password: string) =>
+      request<{ detail: string }>('POST', '/v1/auth/password', { current_password, new_password }),
     me: () => request<MeOut>('GET', '/v1/me'),
+    // team
+    members: () => request<MemberOut[]>('GET', '/v1/members'),
+    assignableRoles: () => request<AssignableRole[]>('GET', '/v1/assignable-roles'),
+    changeRole: (userId: string, role_id: string) =>
+      request<MemberOut>('PUT', `/v1/members/${userId}/role`, { role_id }),
+    removeMember: (userId: string) => request<void>('DELETE', `/v1/members/${userId}`),
+    invites: () => request<InviteOut[]>('GET', '/v1/invites'),
+    createInvite: (email: string, role_id: string) =>
+      request<InviteCreated>('POST', '/v1/invites', { email, role_id }),
+    revokeInvite: (id: string) => request<void>('DELETE', `/v1/invites/${id}`),
+    previewInvite: (token: string) =>
+      request<InvitePreview>('GET', `/v1/invites/${encodeURIComponent(token)}`),
+    acceptInvite: (token: string, display_name: string, password: string) =>
+      request<MeOut>('POST', `/v1/invites/${encodeURIComponent(token)}/accept`, {
+        display_name,
+        password,
+      }),
+    // agents
     catalog: () => request<CatalogOut>('GET', '/v1/catalog'),
     listAgents: () => request<AgentOut[]>('GET', '/v1/agents'),
     getAgent: (id: string) => request<AgentOut>('GET', `/v1/agents/${id}`),

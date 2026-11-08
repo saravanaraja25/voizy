@@ -45,3 +45,8 @@ class MemberOut(BaseModel):
 
 class MemberRoleChange(StrictModel):
     role_id: uuid.UUID
+
+
+class AssignableRole(BaseModel):
+    id: uuid.UUID
+    name: str

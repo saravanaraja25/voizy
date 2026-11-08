@@ -391,6 +391,25 @@
         "title": "ApiKeyOut",
         "type": "object"
       },
+      "AssignableRole": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "AssignableRole",
+        "type": "object"
+      },
       "BuiltinTool": {
         "additionalProperties": false,
         "properties": {
@@ -2314,6 +2333,37 @@
         "summary": "Revoke Api Key",
         "tags": [
           "access"
+        ]
+      }
+    },
+    "/v1/assignable-roles": {
+      "get": {
+        "description": "Roles the caller may hand out: never one that carries a permission the caller lacks.",
+        "operationId": "assignable_roles_v1_assignable_roles_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AssignableRole"
+                  },
+                  "title": "Response Assignable Roles V1 Assignable Roles Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Assignable Roles",
+        "tags": [
+          "team"
         ]
       }
     },

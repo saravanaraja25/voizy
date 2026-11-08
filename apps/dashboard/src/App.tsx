@@ -8,7 +8,11 @@ import { ThemeProvider } from '@/components/theme-provider'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { AgentsPage } from '@/pages/agents'
+import { AccountPage } from '@/pages/account'
+import { InvitePage } from '@/pages/invite'
 import { NotFoundPage } from '@/pages/not-found'
+import { SetupPage } from '@/pages/setup'
+import { TeamPage } from '@/pages/team'
 import { SignInPage } from '@/pages/sign-in'
 
 // The editor pulls in the LiveKit client; load it only when someone opens an agent.
@@ -40,6 +44,7 @@ function RequireAuth() {
       </div>
     )
   }
+  if (status === 'needsSetup') return <Navigate to="/setup" replace />
   if (status === 'signedOut') {
     return <Navigate to="/signin" replace state={{ from: location.pathname }} />
   }
@@ -56,6 +61,8 @@ export function App() {
             <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
               <Routes>
                 <Route path="/signin" element={<SignInPage />} />
+                <Route path="/setup" element={<SetupPage />} />
+                <Route path="/invite/:token" element={<InvitePage />} />
                 <Route element={<RequireAuth />}>
                   <Route index element={<AgentsPage />} />
                   <Route
@@ -66,6 +73,8 @@ export function App() {
                       </Suspense>
                     }
                   />
+                  <Route path="team" element={<TeamPage />} />
+                  <Route path="account" element={<AccountPage />} />
                   <Route path="*" element={<NotFoundPage />} />
                 </Route>
               </Routes>

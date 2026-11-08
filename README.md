@@ -31,14 +31,14 @@ uv run ruff check . && uv run mypy packages/core/src packages/api/src
 
 ## Dashboard
 
-React 19 + TypeScript + Vite + Tailwind v4 + shadcn/ui, in `apps/dashboard`. Sign in with an API key,
-create and edit agents (prompt, voice and models, turn-taking, tools), save immutable versions,
+React 19 + TypeScript + Vite + Tailwind v4 + shadcn/ui, in `apps/dashboard`. Create your account on first run (see below),
+then create and edit agents (prompt, voice and models, turn-taking, tools), save immutable versions,
 publish, and **test-call any version from the browser** with a live transcript and a per-turn
 latency chart. API types are generated from the backend's OpenAPI schema, so they cannot drift.
 
 ```sh
-# API + worker (see below), with the dashboard origin allowed:
-VOIZY_CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173 \
+# API + worker (see below). Local http needs VOIZY_COOKIE_SECURE=0; origins are the dashboard's:
+VOIZY_COOKIE_SECURE=0 VOIZY_CORS_ORIGINS=http://127.0.0.1:5173,http://localhost:5173 \
 VOIZY_DATABASE_URL=... uv run uvicorn voizy_api.app:create_app --factory --port 8010
 uv run python -m voizy_agent start          # the worker that answers test calls
 
@@ -52,6 +52,14 @@ uv run python scripts/export_openapi.py apps/dashboard/openapi.json   # refresh 
 
 Production builds ship a strict Content-Security-Policy (`<meta>`); also send `frame-ancestors 'none'`
 as an HTTP header, which a meta tag cannot carry. The API key lives in `sessionStorage` (this tab only).
+
+### First run, accounts and teammates
+
+On a fresh database the API logs a line like `FIRST-RUN SETUP: ... setup token: <token>`. Open the
+dashboard, paste that token, and create the workspace and your administrator account; setup then
+closes for good. Invite teammates from **Team** (you get a one-time link to send them; no email
+server is needed). Roles are the permission sets from Settings; you can only hand out roles that
+carry no more access than you have. Set `VOIZY_SETUP_TOKEN` to choose the token yourself.
 
 ## Try the voice agent locally
 

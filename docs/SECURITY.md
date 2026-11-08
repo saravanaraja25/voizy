@@ -13,6 +13,29 @@ Rules the code is held to. Each has a test or is marked *planned*.
 - No escalation (grant only what you hold), locked superadmin role, last-superadmin protection,
   API keys bounded by their creator. Role changes are audited.
 
+**Accounts and sessions**
+- Passwords: argon2id (64 MiB, t=3, 4 lanes), 10-128 characters, common-password and
+  email-in-password checks. Unknown accounts are hash-checked against a dummy so timing does not
+  reveal which emails exist; failures return one generic message.
+- Login is throttled per account (5 / 15 min) and per address (30 / 15 min), in memory per
+  process (put a shared limiter in front for multi-instance deployments).
+- Sessions: 256-bit random token in an HttpOnly, SameSite=Lax cookie (Secure unless disabled for
+  local http); only its SHA-256 is stored. Absolute 14-day and 3-day idle expiry. Removing a
+  member deletes their sessions (foreign-key cascade); a password change ends all other sessions.
+- CSRF: cookie-authenticated writes need the per-session `X-CSRF-Token` and an allowlisted
+  `Origin`. API-key requests are exempt (browsers never attach them on their own). CORS allows
+  credentials only for explicitly listed origins; a wildcard is ignored.
+- First-run setup: needs a one-time token printed to the server log, and the claim is an atomic
+  update that can never be undone, so a freshly exposed instance cannot be taken over.
+- Invitations: the link secret is never stored (hash only), works once (row-locked), expires in
+  7 days, and cannot grant a role above the inviter's own permissions.
+- The `users` table has forced RLS with narrow policies (login-by-email, self, workspace
+  members, create-declared-email) and column-level grants: the app role cannot set the
+  platform-superadmin flag. Account functions refuse a non-idle connection, because a nested
+  savepoint would leak the transaction-local security context.
+- The browser keeps no credential: identity and the CSRF token live in memory only, the query
+  cache is cleared on every session change, and nothing is written to local/session storage.
+
 **Secrets**
 - Provider keys and tool credentials are AES-256-GCM encrypted with workspace and name bound as
   associated data, versioned keys for rotation, write-only through the API. Configs reference

@@ -1,7 +1,7 @@
 import { Loader2, LogIn } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import { describeError } from '@/api/client'
 import { useAuth } from '@/auth/AuthContext'
 import { AuthCard } from '@/components/auth-card'
@@ -12,7 +12,6 @@ import { Input } from '@/components/ui/input'
 
 export function SignInPage() {
   const { status, signIn } = useAuth()
-  const navigate = useNavigate()
   const location = useLocation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -30,8 +29,9 @@ export function SignInPage() {
     setError(null)
     setBusy(true)
     try {
+      // Navigation happens declaratively once the session is established (see the redirect
+      // above), so it returns you to the page you were sent away from, deterministically.
       await signIn(email.trim(), password)
-      navigate('/', { replace: true })
     } catch (err) {
       setError(describeError(err))
     } finally {

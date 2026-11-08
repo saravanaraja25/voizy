@@ -70,6 +70,23 @@ describe('sign in', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(/too many attempts/i)
   })
 
+  it('returns you to the page you were sent away from after signing in', async () => {
+    let signedIn = false
+    mockApi({
+      'GET /v1/me': () => (signedIn ? { body: me() } : { status: 401, body: { detail: 'no' } }),
+      'GET /v1/setup/status': { body: { needs_setup: false } },
+      'POST /v1/auth/login': () => {
+        signedIn = true
+        return { body: me() }
+      },
+      'GET /v1/agents': { body: [] },
+    })
+    renderAt('/account') // protected: bounces to sign-in, remembering where you wanted to go
+    await fillAndSubmit()
+    expect(await screen.findByRole('heading', { name: 'Account' })).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/account')
+  })
+
   it('restores an existing session on load', async () => {
     mockApi({ 'GET /v1/me': { body: me() }, 'GET /v1/agents': { body: [] } })
     renderAt('/')

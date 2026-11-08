@@ -36,3 +36,18 @@ def test_roundtrip(version: int | None) -> None:
 )
 def test_anything_else_is_rejected(raw: str | None) -> None:
     assert parse_dispatch(raw) is None
+
+
+def test_source_round_trips_and_defaults_to_test() -> None:
+    import uuid
+
+    from voizy_core.domain.dispatch import DispatchTarget, encode_dispatch, parse_dispatch
+
+    ws, ag = uuid.uuid4(), uuid.uuid4()
+    for source in ("inbound", "outbound"):
+        parsed = parse_dispatch(encode_dispatch(DispatchTarget(ws, ag, None, source)))
+        assert parsed is not None and parsed.source == source
+    plain = encode_dispatch(DispatchTarget(ws, ag))
+    default = parse_dispatch(plain)
+    assert "source" not in plain and default is not None and default.source == "test"
+    assert parse_dispatch(plain[:-1] + ',"source":"bogus"}') is None

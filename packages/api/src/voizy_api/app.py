@@ -23,6 +23,7 @@ from voizy_api.routes.auth import router as auth_router
 from voizy_api.routes.calls import router as calls_router
 from voizy_api.routes.catalog import router as catalog_router
 from voizy_api.routes.integrations import router as integrations_router
+from voizy_api.routes.phone import router as phone_router
 from voizy_api.routes.session import router as session_router
 from voizy_api.routes.team import roles_router as team_roles_router
 from voizy_api.routes.team import router as team_router
@@ -93,6 +94,7 @@ def create_app(
         team_router,
         integrations_router,
         calls_router,
+        phone_router,
     ):
         app.include_router(router)
     if cfg.custom_roles:

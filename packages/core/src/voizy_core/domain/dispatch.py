@@ -10,6 +10,8 @@ from dataclasses import dataclass
 AGENT_WORKER_NAME = "voizy"
 
 _KEYS = {"workspace_id", "agent_id"}
+_OPTIONAL = {"version", "source"}
+SOURCES = ("test", "inbound", "outbound")
 
 
 @dataclass(frozen=True)
@@ -17,6 +19,7 @@ class DispatchTarget:
     workspace_id: uuid.UUID
     agent_id: uuid.UUID
     version: int | None = None  # None = the published version; set for test calls on drafts
+    source: str = "test"  # where the call came from: test | inbound | outbound
 
 
 def encode_dispatch(target: DispatchTarget) -> str:
@@ -26,6 +29,8 @@ def encode_dispatch(target: DispatchTarget) -> str:
     }
     if target.version is not None:
         data["version"] = target.version
+    if target.source != "test":
+        data["source"] = target.source
     return json.dumps(data, separators=(",", ":"))
 
 
@@ -35,15 +40,21 @@ def parse_dispatch(raw: str | None) -> DispatchTarget | None:
         return None
     try:
         data = json.loads(raw)
-        if not isinstance(data, dict) or set(data) - _KEYS - {"version"} or _KEYS - set(data):
+        if not isinstance(data, dict) or set(data) - _KEYS - _OPTIONAL or _KEYS - set(data):
             return None
         version = data.get("version")
         if "version" in data and (
             not isinstance(version, int) or isinstance(version, bool) or version < 1
         ):
             return None
+        source = data.get("source", "test")
+        if source not in SOURCES:
+            return None
         return DispatchTarget(
-            uuid.UUID(str(data["workspace_id"])), uuid.UUID(str(data["agent_id"])), version
+            uuid.UUID(str(data["workspace_id"])),
+            uuid.UUID(str(data["agent_id"])),
+            version,
+            source,
         )
     except (ValueError, TypeError):
         return None

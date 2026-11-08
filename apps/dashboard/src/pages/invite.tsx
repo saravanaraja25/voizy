@@ -73,7 +73,7 @@ export function InvitePage() {
   return (
     <AuthCard
       title={`Join ${invite.workspace_name}`}
-      description={`You were invited as ${invite.role_name}. Choose a password to create your account.`}
+      description={`You were invited as ${invite.role_name}, with full access to the workspace. Choose a password to create your account.`}
       onSubmit={onSubmit}
       footer={
         <Button type="submit" disabled={busy || !name.trim() || !password}>

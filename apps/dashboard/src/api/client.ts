@@ -1,7 +1,6 @@
 import type {
   AgentConfig,
   AgentOut,
-  AssignableRole,
   CatalogOut,
   InviteCreated,
   InviteOut,
@@ -116,13 +115,10 @@ export function createClient(options: ClientOptions = {}) {
     me: () => request<MeOut>('GET', '/v1/me'),
     // team
     members: () => request<MemberOut[]>('GET', '/v1/members'),
-    assignableRoles: () => request<AssignableRole[]>('GET', '/v1/assignable-roles'),
-    changeRole: (userId: string, role_id: string) =>
-      request<MemberOut>('PUT', `/v1/members/${userId}/role`, { role_id }),
     removeMember: (userId: string) => request<void>('DELETE', `/v1/members/${userId}`),
     invites: () => request<InviteOut[]>('GET', '/v1/invites'),
-    createInvite: (email: string, role_id: string) =>
-      request<InviteCreated>('POST', '/v1/invites', { email, role_id }),
+    // Invitations are superadmin-only for now, so an email is all the server needs.
+    createInvite: (email: string) => request<InviteCreated>('POST', '/v1/invites', { email }),
     revokeInvite: (id: string) => request<void>('DELETE', `/v1/invites/${id}`),
     previewInvite: (token: string) =>
       request<InvitePreview>('GET', `/v1/invites/${encodeURIComponent(token)}`),

@@ -391,25 +391,6 @@
         "title": "ApiKeyOut",
         "type": "object"
       },
-      "AssignableRole": {
-        "properties": {
-          "id": {
-            "format": "uuid",
-            "title": "Id",
-            "type": "string"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "name"
-        ],
-        "title": "AssignableRole",
-        "type": "object"
-      },
       "BuiltinTool": {
         "additionalProperties": false,
         "properties": {
@@ -650,14 +631,20 @@
             "type": "string"
           },
           "role_id": {
-            "format": "uuid",
-            "title": "Role Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role Id"
           }
         },
         "required": [
-          "email",
-          "role_id"
+          "email"
         ],
         "title": "InviteCreate",
         "type": "object"
@@ -991,21 +978,6 @@
         "title": "MemberOut",
         "type": "object"
       },
-      "MemberRoleChange": {
-        "additionalProperties": false,
-        "properties": {
-          "role_id": {
-            "format": "uuid",
-            "title": "Role Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "role_id"
-        ],
-        "title": "MemberRoleChange",
-        "type": "object"
-      },
       "ModelOut": {
         "properties": {
           "label": {
@@ -1107,23 +1079,6 @@
         ],
         "title": "Permission",
         "type": "string"
-      },
-      "PermissionOut": {
-        "properties": {
-          "dangerous": {
-            "title": "Dangerous",
-            "type": "boolean"
-          },
-          "name": {
-            "$ref": "#/components/schemas/Permission"
-          }
-        },
-        "required": [
-          "name",
-          "dangerous"
-        ],
-        "title": "PermissionOut",
-        "type": "object"
       },
       "PolicyConfig": {
         "additionalProperties": false,
@@ -1321,103 +1276,6 @@
           }
         },
         "title": "RetrievalConfig",
-        "type": "object"
-      },
-      "RoleCreate": {
-        "additionalProperties": false,
-        "properties": {
-          "name": {
-            "maxLength": 60,
-            "minLength": 1,
-            "title": "Name",
-            "type": "string"
-          },
-          "permissions": {
-            "items": {
-              "$ref": "#/components/schemas/Permission"
-            },
-            "maxItems": 33,
-            "title": "Permissions",
-            "type": "array"
-          }
-        },
-        "required": [
-          "name",
-          "permissions"
-        ],
-        "title": "RoleCreate",
-        "type": "object"
-      },
-      "RoleOut": {
-        "properties": {
-          "id": {
-            "format": "uuid",
-            "title": "Id",
-            "type": "string"
-          },
-          "is_locked": {
-            "title": "Is Locked",
-            "type": "boolean"
-          },
-          "is_system": {
-            "title": "Is System",
-            "type": "boolean"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "permissions": {
-            "items": {
-              "$ref": "#/components/schemas/Permission"
-            },
-            "title": "Permissions",
-            "type": "array"
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "is_system",
-          "is_locked",
-          "permissions"
-        ],
-        "title": "RoleOut",
-        "type": "object"
-      },
-      "RoleUpdate": {
-        "additionalProperties": false,
-        "properties": {
-          "name": {
-            "anyOf": [
-              {
-                "maxLength": 60,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
-          },
-          "permissions": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/Permission"
-                },
-                "maxItems": 33,
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Permissions"
-          }
-        },
-        "title": "RoleUpdate",
         "type": "object"
       },
       "SetupRequest": {
@@ -2336,37 +2194,6 @@
         ]
       }
     },
-    "/v1/assignable-roles": {
-      "get": {
-        "description": "Roles the caller may hand out: never one that carries a permission the caller lacks.",
-        "operationId": "assignable_roles_v1_assignable_roles_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/AssignableRole"
-                  },
-                  "title": "Response Assignable Roles V1 Assignable Roles Get",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Assignable Roles",
-        "tags": [
-          "team"
-        ]
-      }
-    },
     "/v1/auth/login": {
       "post": {
         "operationId": "login_v1_auth_login_post",
@@ -2809,265 +2636,6 @@
         "summary": "Remove Member",
         "tags": [
           "team"
-        ]
-      }
-    },
-    "/v1/members/{user_id}/role": {
-      "put": {
-        "operationId": "change_member_role_v1_members__user_id__role_put",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "user_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "User Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MemberRoleChange"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MemberOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Change Member Role",
-        "tags": [
-          "team"
-        ]
-      }
-    },
-    "/v1/permissions": {
-      "get": {
-        "operationId": "permission_catalog_v1_permissions_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/PermissionOut"
-                  },
-                  "title": "Response Permission Catalog V1 Permissions Get",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Permission Catalog",
-        "tags": [
-          "access"
-        ]
-      }
-    },
-    "/v1/roles": {
-      "get": {
-        "operationId": "list_roles_v1_roles_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/RoleOut"
-                  },
-                  "title": "Response List Roles V1 Roles Get",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "List Roles",
-        "tags": [
-          "access"
-        ]
-      },
-      "post": {
-        "operationId": "create_role_v1_roles_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RoleCreate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RoleOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Create Role",
-        "tags": [
-          "access"
-        ]
-      }
-    },
-    "/v1/roles/{role_id}": {
-      "delete": {
-        "operationId": "delete_role_v1_roles__role_id__delete",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "role_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Role Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Delete Role",
-        "tags": [
-          "access"
-        ]
-      },
-      "put": {
-        "operationId": "update_role_v1_roles__role_id__put",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "role_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Role Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RoleUpdate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RoleOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Update Role",
-        "tags": [
-          "access"
         ]
       }
     },

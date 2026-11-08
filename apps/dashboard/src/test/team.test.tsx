@@ -17,20 +17,15 @@ const members = [
     user_id: 'u-bob',
     email: 'bob@example.com',
     display_name: 'Bob Builder',
-    role_id: 'r-builder',
-    role_name: 'Builder',
+    role_id: 'r-super',
+    role_name: 'Superadmin',
     joined_at: '2026-11-02T10:00:00Z',
     last_login_at: null,
   },
 ]
-const roles = [
-  { id: 'r-analyst', name: 'Analyst' },
-  { id: 'r-builder', name: 'Builder' },
-]
 const base = {
   'GET /v1/me': { body: me() },
   'GET /v1/members': { body: members },
-  'GET /v1/assignable-roles': { body: roles },
   'GET /v1/invites': { body: [] },
   'GET /v1/agents': { body: [] },
 }
@@ -44,36 +39,15 @@ describe('team page', () => {
     expect(screen.getByText('Never')).toBeInTheDocument() // Bob has not signed in yet
     expect(screen.queryByRole('button', { name: /remove olivia/i })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /remove bob@example.com/i })).toBeInTheDocument()
-    // Olivia's Superadmin role is not one she can hand out, so it is shown read-only.
-    expect(screen.queryByRole('combobox', { name: /role for olivia/i })).not.toBeInTheDocument()
-    expect(screen.getByRole('combobox', { name: /role for bob@example.com/i })).toBeInTheDocument()
   })
 
-  it('changes a role with the CSRF token and confirms it', async () => {
-    const calls = mockApi({
-      ...base,
-      'PUT /v1/members/u-bob/role': { body: { ...members[1], role_id: 'r-analyst', role_name: 'Analyst' } },
-    })
+  it('shows every member as a Superadmin, with no role pickers anywhere', async () => {
+    mockApi(base)
     renderAt('/team')
-    const user = userEvent.setup()
-    await user.click(await screen.findByRole('combobox', { name: /role for bob@example.com/i }))
-    await user.click(await screen.findByRole('option', { name: 'Analyst' }))
-    expect(await screen.findByText(/bob builder is now analyst/i)).toBeInTheDocument()
-    const put = calls.find((c) => c.method === 'PUT')!
-    expect(put.body).toEqual({ role_id: 'r-analyst' })
-    expect(put.csrf).toBe(CSRF)
-  })
-
-  it('shows the server reason when a change is refused', async () => {
-    mockApi({
-      ...base,
-      'PUT /v1/members/u-bob/role': { status: 403, body: { detail: 'a workspace must keep at least one superadmin' } },
-    })
-    renderAt('/team')
-    const user = userEvent.setup()
-    await user.click(await screen.findByRole('combobox', { name: /role for bob@example.com/i }))
-    await user.click(await screen.findByRole('option', { name: 'Analyst' }))
-    expect(await screen.findByText(/at least one superadmin/i)).toBeInTheDocument()
+    await screen.findByText('Bob Builder')
+    expect(screen.getAllByText('Superadmin')).toHaveLength(2)
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+    expect(screen.getByText(/everyone here is a superadmin/i)).toBeInTheDocument()
   })
 
   it('removes a member only after confirmation', async () => {
@@ -88,28 +62,29 @@ describe('team page', () => {
     await waitFor(() => expect(calls.some((c) => c.method === 'DELETE' && c.path === '/v1/members/u-bob')).toBe(true))
   })
 
-  it('creates an invitation and shows the one-time link with the dashboard origin', async () => {
+  it('invites by email only, warns that invitees get full access, and shows the link once', async () => {
     const token = 'vzi_' + 'B'.repeat(43)
     const calls = mockApi({
       ...base,
       'POST /v1/invites': {
         status: 201,
-        body: { id: 'i1', email: 'new@example.com', role_name: 'Analyst', expires_at: '2026-12-01T00:00:00Z', created_at: '2026-11-24T00:00:00Z', token, invite_path: `/invite/${token}` },
+        body: { id: 'i1', email: 'new@example.com', role_name: 'Superadmin', expires_at: '2026-12-01T00:00:00Z', created_at: '2026-11-24T00:00:00Z', token, invite_path: `/invite/${token}` },
       },
     })
     renderAt('/team')
     const user = userEvent.setup()
     await user.click(await screen.findByRole('button', { name: /invite someone/i }))
-    await user.type(await screen.findByLabelText('Email'), 'New@Example.com')
-    await user.click(screen.getByRole('combobox', { name: /role/i }))
-    await user.click(await screen.findByRole('option', { name: 'Analyst' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText(/full access to this workspace/i)).toBeInTheDocument()
+    expect(within(dialog).queryByRole('combobox')).not.toBeInTheDocument() // no role to choose
+    await user.type(screen.getByLabelText('Email'), 'New@Example.com')
     await user.click(screen.getByRole('button', { name: /create invitation/i }))
 
     const link = await screen.findByLabelText('Invitation link')
     expect(link).toHaveValue(`${window.location.origin}/invite/${token}`)
     expect(screen.getByText(/shown only now/i)).toBeInTheDocument()
     const post = calls.find((c) => c.path === '/v1/invites' && c.method === 'POST')!
-    expect(post.body).toEqual({ email: 'New@Example.com', role_id: 'r-analyst' })
+    expect(post.body).toEqual({ email: 'New@Example.com' }) // no role sent
     expect(post.csrf).toBe(CSRF)
   })
 
@@ -117,7 +92,7 @@ describe('team page', () => {
     const calls = mockApi({
       ...base,
       'GET /v1/invites': {
-        body: [{ id: 'i1', email: 'pending@example.com', role_name: 'Analyst', expires_at: '2026-12-01T00:00:00Z', created_at: '2026-11-24T00:00:00Z' }],
+        body: [{ id: 'i1', email: 'pending@example.com', role_name: 'Superadmin', expires_at: '2026-12-01T00:00:00Z', created_at: '2026-11-24T00:00:00Z' }],
       },
       'DELETE /v1/invites/i1': { status: 204 },
     })

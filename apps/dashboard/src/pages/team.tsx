@@ -4,7 +4,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { toast } from 'sonner'
 import { describeError } from '@/api/client'
-import type { AssignableRole, InviteCreated, MemberOut } from '@/api/types'
+import type { InviteCreated, MemberOut } from '@/api/types'
 import { useAuth } from '@/auth/AuthContext'
 import { Field } from '@/components/field'
 import {
@@ -31,7 +31,6 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
@@ -42,17 +41,16 @@ export function inviteLink(token: string): string {
   return `${window.location.origin}/invite/${token}`
 }
 
-function InviteDialog({ roles }: { roles: AssignableRole[] }) {
+function InviteDialog() {
   const { client } = useAuth()
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
   const [email, setEmail] = useState('')
-  const [roleId, setRoleId] = useState('')
   const [created, setCreated] = useState<InviteCreated | null>(null)
   const [copied, setCopied] = useState(false)
 
   const invite = useMutation({
-    mutationFn: () => client.createInvite(email.trim(), roleId),
+    mutationFn: () => client.createInvite(email.trim()),
     onSuccess: (inv) => {
       setCreated(inv)
       void queryClient.invalidateQueries({ queryKey: ['invites'] })
@@ -64,7 +62,6 @@ function InviteDialog({ roles }: { roles: AssignableRole[] }) {
     setOpen(next)
     if (!next) {
       setEmail('')
-      setRoleId('')
       setCreated(null)
       setCopied(false)
     }
@@ -81,10 +78,9 @@ function InviteDialog({ roles }: { roles: AssignableRole[] }) {
 
   function onSubmit(e: FormEvent) {
     e.preventDefault()
-    if (email.trim() && roleId) invite.mutate()
+    if (email.trim()) invite.mutate()
   }
 
-  const items = roles.map((r) => ({ value: r.id, label: r.name }))
   return (
     <Dialog open={open} onOpenChange={reset}>
       <DialogTrigger render={<Button />}>
@@ -115,29 +111,16 @@ function InviteDialog({ roles }: { roles: AssignableRole[] }) {
             <DialogHeader>
               <DialogTitle>Invite someone</DialogTitle>
               <DialogDescription>
-                They choose their own password. You can only hand out roles that carry no more
-                access than you have.
+                They choose their own password. Everyone you invite becomes a{' '}
+                <strong>Superadmin</strong> with full access to this workspace, including its keys
+                and team, so only invite people you trust completely.
               </DialogDescription>
             </DialogHeader>
             <Field label="Email" htmlFor="invite-to">
               <Input id="invite-to" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus required />
             </Field>
-            <Field label="Role" htmlFor="invite-role">
-              <Select value={roleId} items={items} onValueChange={(v) => setRoleId(v ?? '')}>
-                <SelectTrigger id="invite-role" className="w-full">
-                  <SelectValue placeholder="Choose a role" />
-                </SelectTrigger>
-                <SelectContent>
-                  {items.map((i) => (
-                    <SelectItem key={i.value} value={i.value}>
-                      {i.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
             <DialogFooter>
-              <Button type="submit" disabled={invite.isPending || !email.trim() || !roleId}>
+              <Button type="submit" disabled={invite.isPending || !email.trim()}>
                 {invite.isPending ? <Loader2 className="animate-spin" /> : <Mail />} Create invitation
               </Button>
             </DialogFooter>
@@ -148,19 +131,11 @@ function InviteDialog({ roles }: { roles: AssignableRole[] }) {
   )
 }
 
-function MemberRow({ member, roles, isSelf }: { member: MemberOut; roles: AssignableRole[]; isSelf: boolean }) {
+function MemberRow({ member, isSelf }: { member: MemberOut; isSelf: boolean }) {
   const { client } = useAuth()
   const queryClient = useQueryClient()
   const [confirmRemove, setConfirmRemove] = useState(false)
 
-  const change = useMutation({
-    mutationFn: (roleId: string) => client.changeRole(member.user_id, roleId),
-    onSuccess: (m) => {
-      void queryClient.invalidateQueries({ queryKey: ['members'] })
-      toast.success(`${m.display_name || m.email} is now ${m.role_name}`)
-    },
-    onError: (e) => toast.error(describeError(e)),
-  })
   const remove = useMutation({
     mutationFn: () => client.removeMember(member.user_id),
     onSuccess: () => {
@@ -169,10 +144,6 @@ function MemberRow({ member, roles, isSelf }: { member: MemberOut; roles: Assign
     },
     onError: (e) => toast.error(describeError(e)),
   })
-
-  const items = roles.map((r) => ({ value: r.id, label: r.name }))
-  // A role you cannot grant is also one you cannot take away from someone, so show it read-only.
-  const editable = !isSelf && roles.some((r) => r.id === member.role_id)
 
   return (
     <TableRow>
@@ -183,22 +154,7 @@ function MemberRow({ member, roles, isSelf }: { member: MemberOut; roles: Assign
         <div className="text-muted-foreground text-xs">{member.email}</div>
       </TableCell>
       <TableCell>
-        {editable ? (
-          <Select value={member.role_id} items={items} disabled={change.isPending} onValueChange={(v) => v && v !== member.role_id && change.mutate(v)}>
-            <SelectTrigger className="w-40" aria-label={`Role for ${member.email}`}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {items.map((i) => (
-                <SelectItem key={i.value} value={i.value}>
-                  {i.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : (
-          <Badge variant="outline">{member.role_name}</Badge>
-        )}
+        <Badge variant="outline">{member.role_name}</Badge>
       </TableCell>
       <TableCell className="text-muted-foreground hidden md:table-cell">
         {member.last_login_at ? dateTimeFormat.format(new Date(member.last_login_at)) : 'Never'}
@@ -240,7 +196,6 @@ export function TeamPage() {
   const allowed = can('members:manage')
 
   const members = useQuery({ queryKey: ['members'], queryFn: () => client.members(), enabled: allowed })
-  const roles = useQuery({ queryKey: ['assignable-roles'], queryFn: () => client.assignableRoles(), enabled: allowed })
   const invites = useQuery({ queryKey: ['invites'], queryFn: () => client.invites(), enabled: allowed })
   const revoke = useMutation({
     mutationFn: (id: string) => client.revokeInvite(id),
@@ -267,7 +222,7 @@ export function TeamPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Team</h1>
           <p className="text-muted-foreground text-sm">People who can sign in to this workspace, and what they can do.</p>
         </div>
-        {roles.data && <InviteDialog roles={roles.data} />}
+        <InviteDialog />
       </div>
 
       {members.isError && (
@@ -280,7 +235,7 @@ export function TeamPage() {
       <Card>
         <CardHeader>
           <CardTitle>Members</CardTitle>
-          <CardDescription>Changing a role takes effect on their next request.</CardDescription>
+          <CardDescription>Everyone here is a Superadmin: full access to this workspace.</CardDescription>
         </CardHeader>
         <CardContent>
           {members.isPending ? (
@@ -304,7 +259,7 @@ export function TeamPage() {
               </TableHeader>
               <TableBody>
                 {members.data?.map((m) => (
-                  <MemberRow key={m.user_id} member={m} roles={roles.data ?? []} isSelf={m.user_id === me?.user_id} />
+                  <MemberRow key={m.user_id} member={m} isSelf={m.user_id === me?.user_id} />
                 ))}
               </TableBody>
             </Table>

@@ -7,7 +7,7 @@ const TOKEN = 'vzi_' + 'A'.repeat(43)
 const preview = {
   workspace_name: 'Acme',
   email: 'new@example.com',
-  role_name: 'Builder',
+  role_name: 'Superadmin',
   expires_at: '2026-12-01T00:00:00Z',
 }
 
@@ -26,7 +26,7 @@ describe('accepting an invitation', () => {
     })
     renderAt(`/invite/${TOKEN}`)
     expect(await screen.findByRole('heading', { name: /join acme/i })).toBeInTheDocument()
-    expect(screen.getByText(/invited as builder/i)).toBeInTheDocument()
+    expect(screen.getByText(/invited as superadmin, with full access/i)).toBeInTheDocument()
     expect(screen.getByLabelText('Email')).toHaveAttribute('readonly')
     expect(screen.getByLabelText('Email')).toHaveValue('new@example.com')
 

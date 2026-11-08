@@ -143,26 +143,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/assignable-roles": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Assignable Roles
-         * @description Roles the caller may hand out: never one that carries a permission the caller lacks.
-         */
-        get: operations["assignable_roles_v1_assignable_roles_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/auth/login": {
         parameters: {
             query?: never;
@@ -351,76 +331,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/members/{user_id}/role": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /** Change Member Role */
-        put: operations["change_member_role_v1_members__user_id__role_put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/permissions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Permission Catalog */
-        get: operations["permission_catalog_v1_permissions_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/roles": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Roles */
-        get: operations["list_roles_v1_roles_get"];
-        put?: never;
-        /** Create Role */
-        post: operations["create_role_v1_roles_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/roles/{role_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /** Update Role */
-        put: operations["update_role_v1_roles__role_id__put"];
-        post?: never;
-        /** Delete Role */
-        delete: operations["delete_role_v1_roles__role_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/setup": {
         parameters: {
             query?: never;
@@ -585,16 +495,6 @@ export interface components {
             /** Revoked At */
             revoked_at: string | null;
         };
-        /** AssignableRole */
-        AssignableRole: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Name */
-            name: string;
-        };
         /** BuiltinTool */
         BuiltinTool: {
             /** Config */
@@ -709,11 +609,8 @@ export interface components {
              * Format: email
              */
             email: string;
-            /**
-             * Role Id
-             * Format: uuid
-             */
-            role_id: string;
+            /** Role Id */
+            role_id?: string | null;
         };
         /** InviteCreated */
         InviteCreated: {
@@ -846,14 +743,6 @@ export interface components {
              */
             user_id: string;
         };
-        /** MemberRoleChange */
-        MemberRoleChange: {
-            /**
-             * Role Id
-             * Format: uuid
-             */
-            role_id: string;
-        };
         /** ModelOut */
         ModelOut: {
             /** Label */
@@ -882,12 +771,6 @@ export interface components {
          * @enum {string}
          */
         Permission: "agents:read" | "agents:create" | "agents:edit" | "agents:publish" | "agents:archive" | "agents:test" | "tools:read" | "tools:manage" | "kb:read" | "kb:manage" | "numbers:read" | "numbers:manage" | "calls:read" | "calls:view_transcript" | "calls:view_recording" | "calls:view_pii" | "calls:export" | "calls:delete" | "calls:place_outbound" | "campaigns:read" | "campaigns:create" | "campaigns:run" | "campaigns:manage_contacts" | "policy:override" | "analytics:read" | "costs:read" | "webhooks:manage" | "provider_keys:manage" | "api_keys:manage" | "members:manage" | "roles:manage" | "settings:manage" | "audit:read";
-        /** PermissionOut */
-        PermissionOut: {
-            /** Dangerous */
-            dangerous: boolean;
-            name: components["schemas"]["Permission"];
-        };
         /** PolicyConfig */
         PolicyConfig: {
             /**
@@ -959,36 +842,6 @@ export interface components {
              * @default 3
              */
             top_k: number;
-        };
-        /** RoleCreate */
-        RoleCreate: {
-            /** Name */
-            name: string;
-            /** Permissions */
-            permissions: components["schemas"]["Permission"][];
-        };
-        /** RoleOut */
-        RoleOut: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Is Locked */
-            is_locked: boolean;
-            /** Is System */
-            is_system: boolean;
-            /** Name */
-            name: string;
-            /** Permissions */
-            permissions: components["schemas"]["Permission"][];
-        };
-        /** RoleUpdate */
-        RoleUpdate: {
-            /** Name */
-            name?: string | null;
-            /** Permissions */
-            permissions?: components["schemas"]["Permission"][] | null;
         };
         /** SetupRequest */
         SetupRequest: {
@@ -1492,26 +1345,6 @@ export interface operations {
             };
         };
     };
-    assignable_roles_v1_assignable_roles_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AssignableRole"][];
-                };
-            };
-        };
-    };
     login_v1_auth_login_post: {
         parameters: {
             query?: never;
@@ -1812,178 +1645,6 @@ export interface operations {
             header?: never;
             path: {
                 user_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    change_member_role_v1_members__user_id__role_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MemberRoleChange"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MemberOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    permission_catalog_v1_permissions_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PermissionOut"][];
-                };
-            };
-        };
-    };
-    list_roles_v1_roles_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RoleOut"][];
-                };
-            };
-        };
-    };
-    create_role_v1_roles_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RoleCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RoleOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_role_v1_roles__role_id__put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                role_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RoleUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RoleOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_role_v1_roles__role_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                role_id: string;
             };
             cookie?: never;
         };

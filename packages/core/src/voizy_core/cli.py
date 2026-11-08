@@ -10,6 +10,7 @@ import sys
 from psycopg import AsyncConnection
 
 from voizy_core.bootstrap import bootstrap_workspace
+from voizy_core.migrate import migrate
 
 
 async def _bootstrap(name: str) -> int:
@@ -25,12 +26,26 @@ async def _bootstrap(name: str) -> int:
     return 0
 
 
+async def _migrate() -> int:
+    dsn = os.environ.get("VOIZY_ADMIN_DATABASE_URL")
+    if not dsn:
+        print("VOIZY_ADMIN_DATABASE_URL is not set", file=sys.stderr)
+        return 2
+    async with await AsyncConnection.connect(dsn) as conn:
+        applied = await migrate(conn, login_role=os.environ.get("VOIZY_APP_LOGIN_ROLE"))
+    print("applied: " + (", ".join(applied) if applied else "nothing to do"))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="voizy-admin")
     sub = parser.add_subparsers(dest="command", required=True)
     boot = sub.add_parser("bootstrap", help="create a workspace and its first superadmin API key")
     boot.add_argument("--name", required=True, help="workspace name")
+    sub.add_parser("migrate", help="apply pending database migrations")
     args = parser.parse_args(argv)
+    if args.command == "migrate":
+        return asyncio.run(_migrate())
     return asyncio.run(_bootstrap(args.name))
 
 

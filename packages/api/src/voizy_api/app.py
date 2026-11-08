@@ -10,6 +10,7 @@ from psycopg_pool import AsyncConnectionPool
 from voizy_core.authz import AuthzError
 from voizy_core.db import open_pool
 
+from voizy_api.middleware import SecurityMiddleware
 from voizy_api.routes_access import router as access_router
 from voizy_api.routes_agents import router as agents_router
 
@@ -33,6 +34,7 @@ def create_app(pool: AsyncConnectionPool | None = None) -> FastAPI:
     )
     if pool is not None:
         app.state.pool = pool
+    app.add_middleware(SecurityMiddleware)
     app.include_router(agents_router)
     app.include_router(access_router)
 

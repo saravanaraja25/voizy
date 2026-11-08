@@ -1,5 +1,4 @@
 import pytest
-
 from voizy_core.authz import (
     AuthzError,
     RoleView,

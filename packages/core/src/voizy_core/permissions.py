@@ -84,10 +84,20 @@ SEED_ROLES: tuple[SeedRole, ...] = (
         "Builder",
         frozenset(
             {
-                _P.AGENTS_READ, _P.AGENTS_CREATE, _P.AGENTS_EDIT, _P.AGENTS_PUBLISH,
-                _P.AGENTS_ARCHIVE, _P.AGENTS_TEST, _P.TOOLS_READ, _P.TOOLS_MANAGE,
-                _P.KB_READ, _P.KB_MANAGE, _P.NUMBERS_READ, _P.CALLS_READ,
-                _P.CALLS_VIEW_TRANSCRIPT, _P.ANALYTICS_READ,
+                _P.AGENTS_READ,
+                _P.AGENTS_CREATE,
+                _P.AGENTS_EDIT,
+                _P.AGENTS_PUBLISH,
+                _P.AGENTS_ARCHIVE,
+                _P.AGENTS_TEST,
+                _P.TOOLS_READ,
+                _P.TOOLS_MANAGE,
+                _P.KB_READ,
+                _P.KB_MANAGE,
+                _P.NUMBERS_READ,
+                _P.CALLS_READ,
+                _P.CALLS_VIEW_TRANSCRIPT,
+                _P.ANALYTICS_READ,
             }
         ),
     ),
@@ -95,10 +105,18 @@ SEED_ROLES: tuple[SeedRole, ...] = (
         "Operator",
         frozenset(
             {
-                _P.AGENTS_READ, _P.NUMBERS_READ, _P.CALLS_READ, _P.CALLS_VIEW_TRANSCRIPT,
-                _P.CALLS_VIEW_RECORDING, _P.CALLS_VIEW_PII, _P.CALLS_PLACE_OUTBOUND,
-                _P.CAMPAIGNS_READ, _P.CAMPAIGNS_CREATE, _P.CAMPAIGNS_RUN,
-                _P.CAMPAIGNS_MANAGE_CONTACTS, _P.ANALYTICS_READ,
+                _P.AGENTS_READ,
+                _P.NUMBERS_READ,
+                _P.CALLS_READ,
+                _P.CALLS_VIEW_TRANSCRIPT,
+                _P.CALLS_VIEW_RECORDING,
+                _P.CALLS_VIEW_PII,
+                _P.CALLS_PLACE_OUTBOUND,
+                _P.CAMPAIGNS_READ,
+                _P.CAMPAIGNS_CREATE,
+                _P.CAMPAIGNS_RUN,
+                _P.CAMPAIGNS_MANAGE_CONTACTS,
+                _P.ANALYTICS_READ,
             }
         ),
     ),
@@ -106,8 +124,12 @@ SEED_ROLES: tuple[SeedRole, ...] = (
         "Analyst",
         frozenset(
             {
-                _P.AGENTS_READ, _P.CALLS_READ, _P.CALLS_VIEW_TRANSCRIPT, _P.CAMPAIGNS_READ,
-                _P.ANALYTICS_READ, _P.COSTS_READ,
+                _P.AGENTS_READ,
+                _P.CALLS_READ,
+                _P.CALLS_VIEW_TRANSCRIPT,
+                _P.CAMPAIGNS_READ,
+                _P.ANALYTICS_READ,
+                _P.COSTS_READ,
             }
         ),
     ),

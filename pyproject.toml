@@ -27,3 +27,7 @@ select = ["E", "F", "I", "UP", "B", "S"]
 
 [tool.mypy]
 strict = true
+
+[tool.pytest.ini_options]
+testpaths = ["packages"]
+asyncio_default_fixture_loop_scope = "function"

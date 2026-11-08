@@ -5,6 +5,9 @@ description = "Voizy domain models, permissions and persistence"
 requires-python = ">=3.12"
 dependencies = ["pydantic>=2.9", "cryptography>=43", "psycopg[binary,pool]>=3.2"]
 
+[project.scripts]
+voizy-admin = "voizy_core.cli:main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

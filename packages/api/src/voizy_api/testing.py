@@ -11,6 +11,7 @@ import pytest
 import pytest_asyncio
 from psycopg_pool import AsyncConnectionPool
 from voizy_core.apikeys import generate_api_key
+from voizy_core.bootstrap import BootstrapResult, bootstrap_workspace
 from voizy_core.db import open_pool
 from voizy_core.permissions import ALL_PERMISSIONS
 
@@ -63,3 +64,10 @@ def agent_body(name: str = "Receptionist") -> dict[str, object]:
             "tts": {"provider": "cartesia", "model": "sonic", "voice_id": "v1"},
         },
     }
+
+
+@pytest_asyncio.fixture
+async def workspace_a(admin_dsn: str) -> BootstrapResult:
+    """A bootstrapped workspace with seeded roles and a superadmin API key."""
+    async with await psycopg.AsyncConnection.connect(admin_dsn) as conn:
+        return await bootstrap_workspace(conn, "A")

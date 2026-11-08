@@ -1,17 +1,18 @@
 from __future__ import annotations
 
-import json
 import uuid
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from psycopg import AsyncConnection
 from voizy_core.agent_config import AgentConfig
 from voizy_core.apikeys import Principal
 from voizy_core.db import workspace_tx
 from voizy_core.permissions import Permission
 
 from voizy_api.auth import require
+from voizy_api.common import audit as _audit
+from voizy_api.common import not_found as _not_found
+from voizy_api.common import returned as _returned
 from voizy_api.schemas import AgentCreate, AgentOut, VersionCreate, VersionOut
 
 router = APIRouter(prefix="/v1/agents", tags=["agents"])
@@ -27,32 +28,6 @@ def _agent_out(row: tuple[Any, ...]) -> AgentOut:
     return AgentOut(
         id=row[0], name=row[1], published_version=row[2], archived=row[3], created_at=row[4]
     )
-
-
-async def _audit(
-    conn: AsyncConnection,
-    p: Principal,
-    action: str,
-    target_type: str,
-    target_id: object,
-    **detail: object,
-) -> None:
-    await conn.execute(
-        "INSERT INTO audit_log (workspace_id, actor_api_key_id, action, target_type, target_id, "
-        "detail) VALUES (%s, %s, %s, %s, %s, %s::jsonb)",
-        (p.workspace_id, p.api_key_id, action, target_type, str(target_id), json.dumps(detail)),
-    )
-
-
-def _returned(row: tuple[Any, ...] | None) -> tuple[Any, ...]:
-    """A statement with RETURNING / a just-inserted row must yield a row; fail loudly if not."""
-    if row is None:
-        raise RuntimeError("expected a row from the database")
-    return row
-
-
-def _not_found() -> HTTPException:
-    return HTTPException(status.HTTP_404_NOT_FOUND, "not found")
 
 
 @router.post("", response_model=AgentOut, status_code=status.HTTP_201_CREATED)

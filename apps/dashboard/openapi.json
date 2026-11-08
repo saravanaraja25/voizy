@@ -1,0 +1,2177 @@
+{
+  "components": {
+    "schemas": {
+      "AgentConfig": {
+        "additionalProperties": false,
+        "properties": {
+          "default_language": {
+            "default": "en",
+            "title": "Default Language",
+            "type": "string"
+          },
+          "knowledge_collection_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Knowledge Collection Ids",
+            "type": "array"
+          },
+          "languages": {
+            "items": {
+              "$ref": "#/components/schemas/LanguageConfig"
+            },
+            "minItems": 1,
+            "title": "Languages",
+            "type": "array"
+          },
+          "llm": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProviderChoice"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mode": {
+            "default": "pipeline",
+            "enum": [
+              "pipeline",
+              "realtime"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "policy": {
+            "$ref": "#/components/schemas/PolicyConfig"
+          },
+          "post_call": {
+            "$ref": "#/components/schemas/PostCallConfig"
+          },
+          "realtime": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RealtimeChoice"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "retrieval": {
+            "$ref": "#/components/schemas/RetrievalConfig"
+          },
+          "stt": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProviderChoice"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "system_prompt": {
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "System Prompt",
+            "type": "string"
+          },
+          "tools": {
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "builtin": "#/components/schemas/BuiltinTool",
+                  "http": "#/components/schemas/HttpTool"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/BuiltinTool"
+                },
+                {
+                  "$ref": "#/components/schemas/HttpTool"
+                }
+              ]
+            },
+            "maxItems": 30,
+            "title": "Tools",
+            "type": "array"
+          },
+          "tts": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VoiceChoice"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "turn": {
+            "$ref": "#/components/schemas/TurnConfig"
+          },
+          "variables": {
+            "items": {
+              "$ref": "#/components/schemas/VariableDef"
+            },
+            "maxItems": 50,
+            "title": "Variables",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "system_prompt"
+        ],
+        "title": "AgentConfig",
+        "type": "object"
+      },
+      "AgentCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "config": {
+            "$ref": "#/components/schemas/AgentConfig"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "config"
+        ],
+        "title": "AgentCreate",
+        "type": "object"
+      },
+      "AgentOut": {
+        "properties": {
+          "archived": {
+            "title": "Archived",
+            "type": "boolean"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "published_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published Version"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "published_version",
+          "archived",
+          "created_at"
+        ],
+        "title": "AgentOut",
+        "type": "object"
+      },
+      "ApiKeyCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "permissions": {
+            "items": {
+              "$ref": "#/components/schemas/Permission"
+            },
+            "maxItems": 33,
+            "minItems": 1,
+            "title": "Permissions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "permissions"
+        ],
+        "title": "ApiKeyCreate",
+        "type": "object"
+      },
+      "ApiKeyCreated": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "permissions": {
+            "items": {
+              "$ref": "#/components/schemas/Permission"
+            },
+            "title": "Permissions",
+            "type": "array"
+          },
+          "prefix": {
+            "title": "Prefix",
+            "type": "string"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "prefix",
+          "permissions",
+          "expires_at",
+          "revoked_at",
+          "created_at",
+          "token"
+        ],
+        "title": "ApiKeyCreated",
+        "type": "object"
+      },
+      "ApiKeyOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "permissions": {
+            "items": {
+              "$ref": "#/components/schemas/Permission"
+            },
+            "title": "Permissions",
+            "type": "array"
+          },
+          "prefix": {
+            "title": "Prefix",
+            "type": "string"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "prefix",
+          "permissions",
+          "expires_at",
+          "revoked_at",
+          "created_at"
+        ],
+        "title": "ApiKeyOut",
+        "type": "object"
+      },
+      "BuiltinTool": {
+        "additionalProperties": false,
+        "properties": {
+          "config": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "title": "Config",
+            "type": "object"
+          },
+          "kind": {
+            "const": "builtin",
+            "default": "builtin",
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "enum": [
+              "transfer_call",
+              "end_call",
+              "send_sms",
+              "collect_fields"
+            ],
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "BuiltinTool",
+        "type": "object"
+      },
+      "CatalogOut": {
+        "properties": {
+          "default_voice_id": {
+            "title": "Default Voice Id",
+            "type": "string"
+          },
+          "llm": {
+            "items": {
+              "$ref": "#/components/schemas/ModelOut"
+            },
+            "title": "Llm",
+            "type": "array"
+          },
+          "stt": {
+            "items": {
+              "$ref": "#/components/schemas/ModelOut"
+            },
+            "title": "Stt",
+            "type": "array"
+          },
+          "tts": {
+            "items": {
+              "$ref": "#/components/schemas/ModelOut"
+            },
+            "title": "Tts",
+            "type": "array"
+          }
+        },
+        "required": [
+          "stt",
+          "llm",
+          "tts",
+          "default_voice_id"
+        ],
+        "title": "CatalogOut",
+        "type": "object"
+      },
+      "FillerPolicy": {
+        "additionalProperties": false,
+        "description": "What the agent says while a slow tool runs. Spoken only if the tool exceeds delay_ms.",
+        "properties": {
+          "delay_ms": {
+            "default": 600,
+            "maximum": 3000.0,
+            "minimum": 0.0,
+            "title": "Delay Ms",
+            "type": "integer"
+          },
+          "failure_phrase": {
+            "default": "Sorry, I couldn't get that just now.",
+            "maxLength": 200,
+            "title": "Failure Phrase",
+            "type": "string"
+          },
+          "mode": {
+            "default": "auto",
+            "enum": [
+              "auto",
+              "custom",
+              "none"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "phrases": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 5,
+            "title": "Phrases",
+            "type": "array"
+          },
+          "still_working_after_ms": {
+            "default": 4000,
+            "maximum": 15000.0,
+            "minimum": 1000.0,
+            "title": "Still Working After Ms",
+            "type": "integer"
+          }
+        },
+        "title": "FillerPolicy",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HttpTool": {
+        "additionalProperties": false,
+        "properties": {
+          "auth_secret_ref": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Auth Secret Ref"
+          },
+          "description": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "filler": {
+            "$ref": "#/components/schemas/FillerPolicy"
+          },
+          "kind": {
+            "const": "http",
+            "default": "http",
+            "title": "Kind",
+            "type": "string"
+          },
+          "max_result_chars": {
+            "default": 2000,
+            "maximum": 20000.0,
+            "minimum": 200.0,
+            "title": "Max Result Chars",
+            "type": "integer"
+          },
+          "method": {
+            "default": "POST",
+            "enum": [
+              "GET",
+              "POST",
+              "PUT",
+              "PATCH",
+              "DELETE"
+            ],
+            "title": "Method",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "parameters_schema": {
+            "additionalProperties": true,
+            "title": "Parameters Schema",
+            "type": "object"
+          },
+          "speculative": {
+            "default": false,
+            "title": "Speculative",
+            "type": "boolean"
+          },
+          "timeout_s": {
+            "default": 5.0,
+            "exclusiveMinimum": 0.0,
+            "maximum": 15.0,
+            "title": "Timeout S",
+            "type": "number"
+          },
+          "url": {
+            "format": "uri",
+            "maxLength": 2083,
+            "minLength": 1,
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "description",
+          "url"
+        ],
+        "title": "HttpTool",
+        "type": "object"
+      },
+      "LanguageConfig": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "pattern": "^[a-z]{2}(-[A-Z]{2})?$",
+            "title": "Code",
+            "type": "string"
+          },
+          "greeting": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Greeting"
+          },
+          "stt": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProviderChoice"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tts": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VoiceChoice"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "LanguageConfig",
+        "type": "object"
+      },
+      "MeOut": {
+        "properties": {
+          "api_key_id": {
+            "format": "uuid",
+            "title": "Api Key Id",
+            "type": "string"
+          },
+          "permissions": {
+            "items": {
+              "$ref": "#/components/schemas/Permission"
+            },
+            "title": "Permissions",
+            "type": "array"
+          },
+          "workspace_id": {
+            "format": "uuid",
+            "title": "Workspace Id",
+            "type": "string"
+          },
+          "workspace_name": {
+            "title": "Workspace Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspace_id",
+          "workspace_name",
+          "api_key_id",
+          "permissions"
+        ],
+        "title": "MeOut",
+        "type": "object"
+      },
+      "ModelOut": {
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "model",
+          "label",
+          "note"
+        ],
+        "title": "ModelOut",
+        "type": "object"
+      },
+      "Permission": {
+        "enum": [
+          "agents:read",
+          "agents:create",
+          "agents:edit",
+          "agents:publish",
+          "agents:archive",
+          "agents:test",
+          "tools:read",
+          "tools:manage",
+          "kb:read",
+          "kb:manage",
+          "numbers:read",
+          "numbers:manage",
+          "calls:read",
+          "calls:view_transcript",
+          "calls:view_recording",
+          "calls:view_pii",
+          "calls:export",
+          "calls:delete",
+          "calls:place_outbound",
+          "campaigns:read",
+          "campaigns:create",
+          "campaigns:run",
+          "campaigns:manage_contacts",
+          "policy:override",
+          "analytics:read",
+          "costs:read",
+          "webhooks:manage",
+          "provider_keys:manage",
+          "api_keys:manage",
+          "members:manage",
+          "roles:manage",
+          "settings:manage",
+          "audit:read"
+        ],
+        "title": "Permission",
+        "type": "string"
+      },
+      "PermissionOut": {
+        "properties": {
+          "dangerous": {
+            "title": "Dangerous",
+            "type": "boolean"
+          },
+          "name": {
+            "$ref": "#/components/schemas/Permission"
+          }
+        },
+        "required": [
+          "name",
+          "dangerous"
+        ],
+        "title": "PermissionOut",
+        "type": "object"
+      },
+      "PolicyConfig": {
+        "additionalProperties": false,
+        "properties": {
+          "record_calls": {
+            "default": false,
+            "title": "Record Calls",
+            "type": "boolean"
+          },
+          "recording_disclosure": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recording Disclosure"
+          },
+          "redact_pii": {
+            "default": true,
+            "title": "Redact Pii",
+            "type": "boolean"
+          },
+          "retention_days": {
+            "default": 30,
+            "maximum": 3650.0,
+            "minimum": 0.0,
+            "title": "Retention Days",
+            "type": "integer"
+          }
+        },
+        "title": "PolicyConfig",
+        "type": "object"
+      },
+      "PostCallConfig": {
+        "additionalProperties": false,
+        "properties": {
+          "dispositions": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 30,
+            "title": "Dispositions",
+            "type": "array"
+          },
+          "extraction_schema": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extraction Schema"
+          },
+          "summary_prompt": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary Prompt"
+          }
+        },
+        "title": "PostCallConfig",
+        "type": "object"
+      },
+      "ProviderChoice": {
+        "additionalProperties": false,
+        "properties": {
+          "model": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Model",
+            "type": "string"
+          },
+          "params": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                }
+              ]
+            },
+            "title": "Params",
+            "type": "object"
+          },
+          "provider": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Provider",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "model"
+        ],
+        "title": "ProviderChoice",
+        "type": "object"
+      },
+      "RealtimeChoice": {
+        "additionalProperties": false,
+        "properties": {
+          "model": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Model",
+            "type": "string"
+          },
+          "params": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                }
+              ]
+            },
+            "title": "Params",
+            "type": "object"
+          },
+          "provider": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Provider",
+            "type": "string"
+          },
+          "voice": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice"
+          }
+        },
+        "required": [
+          "provider",
+          "model"
+        ],
+        "title": "RealtimeChoice",
+        "type": "object"
+      },
+      "RetrievalConfig": {
+        "additionalProperties": false,
+        "description": "How knowledge reaches the model. prefetch avoids an extra LLM round trip.",
+        "properties": {
+          "mode": {
+            "default": "prefetch",
+            "enum": [
+              "prompt",
+              "prefetch",
+              "tool"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "top_k": {
+            "default": 3,
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Top K",
+            "type": "integer"
+          }
+        },
+        "title": "RetrievalConfig",
+        "type": "object"
+      },
+      "RoleCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "permissions": {
+            "items": {
+              "$ref": "#/components/schemas/Permission"
+            },
+            "maxItems": 33,
+            "title": "Permissions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "permissions"
+        ],
+        "title": "RoleCreate",
+        "type": "object"
+      },
+      "RoleOut": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_locked": {
+            "title": "Is Locked",
+            "type": "boolean"
+          },
+          "is_system": {
+            "title": "Is System",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "permissions": {
+            "items": {
+              "$ref": "#/components/schemas/Permission"
+            },
+            "title": "Permissions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "is_system",
+          "is_locked",
+          "permissions"
+        ],
+        "title": "RoleOut",
+        "type": "object"
+      },
+      "RoleUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "permissions": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Permission"
+                },
+                "maxItems": 33,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Permissions"
+          }
+        },
+        "title": "RoleUpdate",
+        "type": "object"
+      },
+      "TestSessionOut": {
+        "properties": {
+          "expires_in_s": {
+            "title": "Expires In S",
+            "type": "integer"
+          },
+          "identity": {
+            "title": "Identity",
+            "type": "string"
+          },
+          "room": {
+            "title": "Room",
+            "type": "string"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "token",
+          "room",
+          "identity",
+          "expires_in_s"
+        ],
+        "title": "TestSessionOut",
+        "type": "object"
+      },
+      "TurnConfig": {
+        "additionalProperties": false,
+        "properties": {
+          "allow_interruptions": {
+            "default": true,
+            "title": "Allow Interruptions",
+            "type": "boolean"
+          },
+          "backchannel": {
+            "default": false,
+            "title": "Backchannel",
+            "type": "boolean"
+          },
+          "fillers": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10,
+            "title": "Fillers",
+            "type": "array"
+          },
+          "interruption_min_words": {
+            "default": 1,
+            "maximum": 10.0,
+            "minimum": 0.0,
+            "title": "Interruption Min Words",
+            "type": "integer"
+          },
+          "max_call_duration_s": {
+            "default": 900,
+            "maximum": 7200.0,
+            "minimum": 30.0,
+            "title": "Max Call Duration S",
+            "type": "integer"
+          },
+          "max_endpointing_delay_ms": {
+            "default": 1500,
+            "maximum": 6000.0,
+            "minimum": 100.0,
+            "title": "Max Endpointing Delay Ms",
+            "type": "integer"
+          },
+          "max_silence_s": {
+            "default": 15,
+            "maximum": 120.0,
+            "minimum": 3.0,
+            "title": "Max Silence S",
+            "type": "integer"
+          },
+          "min_endpointing_delay_ms": {
+            "default": 300,
+            "maximum": 3000.0,
+            "minimum": 0.0,
+            "title": "Min Endpointing Delay Ms",
+            "type": "integer"
+          },
+          "preemptive_generation": {
+            "default": true,
+            "title": "Preemptive Generation",
+            "type": "boolean"
+          },
+          "vad_min_silence_ms": {
+            "default": 550,
+            "maximum": 2000.0,
+            "minimum": 100.0,
+            "title": "Vad Min Silence Ms",
+            "type": "integer"
+          },
+          "vad_threshold": {
+            "default": 0.5,
+            "maximum": 0.95,
+            "minimum": 0.1,
+            "title": "Vad Threshold",
+            "type": "number"
+          }
+        },
+        "title": "TurnConfig",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "VariableDef": {
+        "additionalProperties": false,
+        "properties": {
+          "default": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default"
+          },
+          "name": {
+            "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+            "title": "Name",
+            "type": "string"
+          },
+          "required": {
+            "default": false,
+            "title": "Required",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "VariableDef",
+        "type": "object"
+      },
+      "VersionCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "config": {
+            "$ref": "#/components/schemas/AgentConfig"
+          }
+        },
+        "required": [
+          "config"
+        ],
+        "title": "VersionCreate",
+        "type": "object"
+      },
+      "VersionOut": {
+        "properties": {
+          "config": {
+            "$ref": "#/components/schemas/AgentConfig"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "is_published": {
+            "title": "Is Published",
+            "type": "boolean"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "is_published",
+          "published_at",
+          "created_at",
+          "config"
+        ],
+        "title": "VersionOut",
+        "type": "object"
+      },
+      "VersionSummary": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "is_published": {
+            "title": "Is Published",
+            "type": "boolean"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "is_published",
+          "published_at",
+          "created_at"
+        ],
+        "title": "VersionSummary",
+        "type": "object"
+      },
+      "VoiceChoice": {
+        "additionalProperties": false,
+        "properties": {
+          "model": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Model",
+            "type": "string"
+          },
+          "params": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                }
+              ]
+            },
+            "title": "Params",
+            "type": "object"
+          },
+          "provider": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Provider",
+            "type": "string"
+          },
+          "speed": {
+            "default": 1.0,
+            "maximum": 1.3,
+            "minimum": 0.7,
+            "title": "Speed",
+            "type": "number"
+          },
+          "voice_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Voice Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "model",
+          "voice_id"
+        ],
+        "title": "VoiceChoice",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "title": "Voizy API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/v1/agents": {
+      "get": {
+        "operationId": "list_agents_v1_agents_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AgentOut"
+                  },
+                  "title": "Response List Agents V1 Agents Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Agents",
+        "tags": [
+          "agents"
+        ]
+      },
+      "post": {
+        "operationId": "create_agent_v1_agents_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Agent",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/v1/agents/{agent_id}": {
+      "get": {
+        "operationId": "get_agent_v1_agents__agent_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Agent",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/v1/agents/{agent_id}/versions": {
+      "get": {
+        "operationId": "list_versions_v1_agents__agent_id__versions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/VersionSummary"
+                  },
+                  "title": "Response List Versions V1 Agents  Agent Id  Versions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Versions",
+        "tags": [
+          "session"
+        ]
+      },
+      "post": {
+        "operationId": "create_version_v1_agents__agent_id__versions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Version",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/v1/agents/{agent_id}/versions/{version}": {
+      "get": {
+        "operationId": "get_version_v1_agents__agent_id__versions__version__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Version",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/v1/agents/{agent_id}/versions/{version}/publish": {
+      "post": {
+        "operationId": "publish_version_v1_agents__agent_id__versions__version__publish_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Publish Version",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/v1/agents/{agent_id}/versions/{version}/test-session": {
+      "post": {
+        "operationId": "create_test_session_v1_agents__agent_id__versions__version__test_session_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestSessionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Test Session",
+        "tags": [
+          "session"
+        ]
+      }
+    },
+    "/v1/api-keys": {
+      "get": {
+        "operationId": "list_api_keys_v1_api_keys_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ApiKeyOut"
+                  },
+                  "title": "Response List Api Keys V1 Api Keys Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Api Keys",
+        "tags": [
+          "access"
+        ]
+      },
+      "post": {
+        "operationId": "create_api_key_v1_api_keys_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiKeyCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyCreated"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Api Key",
+        "tags": [
+          "access"
+        ]
+      }
+    },
+    "/v1/api-keys/{key_id}": {
+      "delete": {
+        "operationId": "revoke_api_key_v1_api_keys__key_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Key Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Revoke Api Key",
+        "tags": [
+          "access"
+        ]
+      }
+    },
+    "/v1/catalog": {
+      "get": {
+        "operationId": "get_catalog_v1_catalog_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Catalog",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/v1/me": {
+      "get": {
+        "operationId": "me_v1_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Me",
+        "tags": [
+          "session"
+        ]
+      }
+    },
+    "/v1/permissions": {
+      "get": {
+        "operationId": "permission_catalog_v1_permissions_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PermissionOut"
+                  },
+                  "title": "Response Permission Catalog V1 Permissions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Permission Catalog",
+        "tags": [
+          "access"
+        ]
+      }
+    },
+    "/v1/roles": {
+      "get": {
+        "operationId": "list_roles_v1_roles_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RoleOut"
+                  },
+                  "title": "Response List Roles V1 Roles Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Roles",
+        "tags": [
+          "access"
+        ]
+      },
+      "post": {
+        "operationId": "create_role_v1_roles_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Role",
+        "tags": [
+          "access"
+        ]
+      }
+    },
+    "/v1/roles/{role_id}": {
+      "delete": {
+        "operationId": "delete_role_v1_roles__role_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "role_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Role Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Role",
+        "tags": [
+          "access"
+        ]
+      },
+      "put": {
+        "operationId": "update_role_v1_roles__role_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "role_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Role Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Role",
+        "tags": [
+          "access"
+        ]
+      }
+    }
+  }
+}

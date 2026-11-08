@@ -13,7 +13,7 @@ members = ["packages/*"]
 voizy-core = { workspace = true }
 
 [dependency-groups]
-dev = ["pytest>=8", "pytest-asyncio>=0.24", "ruff>=0.7", "mypy>=1.13", "voizy-core"]
+dev = ["psycopg[binary]>=3.2", "pytest>=8", "pytest-asyncio>=0.24", "ruff>=0.7", "mypy>=1.13", "voizy-core"]
 
 [tool.ruff]
 line-length = 100

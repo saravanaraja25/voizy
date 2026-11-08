@@ -29,6 +29,30 @@ VOIZY_TEST_ADMIN_URL=postgresql://postgres@127.0.0.1:55432/postgres uv run pytes
 uv run ruff check . && uv run mypy packages/core/src packages/api/src
 ```
 
+## Dashboard
+
+React 19 + TypeScript + Vite + Tailwind v4 + shadcn/ui, in `apps/dashboard`. Sign in with an API key,
+create and edit agents (prompt, voice and models, turn-taking, tools), save immutable versions,
+publish, and **test-call any version from the browser** with a live transcript and a per-turn
+latency chart. API types are generated from the backend's OpenAPI schema, so they cannot drift.
+
+```sh
+# API + worker (see below), with the dashboard origin allowed:
+VOIZY_CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173 \
+VOIZY_DATABASE_URL=... uv run uvicorn voizy_api.app:create_app --factory --port 8010
+uv run python -m voizy_agent start          # the worker that answers test calls
+
+cd apps/dashboard
+pnpm install
+pnpm dev                                    # http://127.0.0.1:5173
+pnpm check                                  # lint + typecheck + tests
+pnpm gen:api                                # regenerate types after backend schema changes
+uv run python scripts/export_openapi.py apps/dashboard/openapi.json   # refresh the schema first
+```
+
+Production builds ship a strict Content-Security-Policy (`<meta>`); also send `frame-ancestors 'none'`
+as an HTTP header, which a meta tag cannot carry. The API key lives in `sessionStorage` (this tab only).
+
 ## Try the voice agent locally
 
 Needs `.env` with `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` (LiveKit Cloud; Inference

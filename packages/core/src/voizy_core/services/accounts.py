@@ -12,13 +12,11 @@ import hashlib
 import re
 import secrets
 import uuid
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
 from dataclasses import dataclass
 
 from psycopg import AsyncConnection
-from psycopg.pq import TransactionStatus
 
+from voizy_core.db.tx import owned_tx
 from voizy_core.domain.permissions import SUPERADMIN_ROLE_NAME, Permission
 from voizy_core.security.authz import RoleView
 from voizy_core.services.auth import Principal
@@ -31,20 +29,6 @@ _TOUCH_AFTER = dt.timedelta(minutes=5)
 
 SESSION_TOKEN_RE = re.compile(r"^vzs_[A-Za-z0-9_-]{43}$")
 INVITE_TOKEN_RE = re.compile(r"^vzi_[A-Za-z0-9_-]{43}$")
-
-
-@asynccontextmanager
-async def _tx(conn: AsyncConnection) -> AsyncIterator[None]:
-    """A real top-level transaction, or an error.
-
-    Inside an already-open transaction, conn.transaction() would only be a savepoint: nothing
-    would commit, and the transaction-local security context (app.user_id, app.workspace_id, ...)
-    would leak into whatever the caller runs next. So refuse instead of silently degrading.
-    """
-    if conn.info.transaction_status != TransactionStatus.IDLE:
-        raise RuntimeError("accounts functions need an idle connection (commit or roll back first)")
-    async with conn.transaction():
-        yield
 
 
 def normalize_email(email: str) -> str:
@@ -73,7 +57,7 @@ def _perms(raw: list[str]) -> frozenset[Permission]:
 
 
 async def setup_needed(conn: AsyncConnection) -> bool:
-    async with _tx(conn):
+    async with owned_tx(conn):
         cur = await conn.execute("SELECT setup_completed_at IS NULL FROM instance_settings")
         row = await cur.fetchone()
     return bool(row and row[0])
@@ -99,7 +83,7 @@ async def complete_setup(
     The claim is a single atomic UPDATE, so of two simultaneous attempts exactly one proceeds.
     """
     email = normalize_email(email)
-    async with _tx(conn):
+    async with owned_tx(conn):
         cur = await conn.execute(
             "UPDATE instance_settings SET setup_completed_at = now() "
             "WHERE setup_completed_at IS NULL RETURNING true"
@@ -139,7 +123,7 @@ class UserAccount:
 
 
 async def find_user_for_login(conn: AsyncConnection, email: str) -> UserAccount | None:
-    async with _tx(conn):
+    async with owned_tx(conn):
         await _set(conn, "app.login_email", normalize_email(email))
         cur = await conn.execute(
             "SELECT id, email, display_name, password_hash, is_active FROM users "
@@ -153,7 +137,7 @@ async def find_user_for_login(conn: AsyncConnection, email: str) -> UserAccount 
 async def record_login(
     conn: AsyncConnection, user_id: uuid.UUID, *, new_password_hash: str | None = None
 ) -> None:
-    async with _tx(conn):
+    async with owned_tx(conn):
         await _set(conn, "app.user_id", str(user_id))
         await conn.execute(
             "UPDATE users SET last_login_at = now(), "
@@ -169,7 +153,7 @@ class MembershipInfo:
 
 
 async def memberships_of(conn: AsyncConnection, user_id: uuid.UUID) -> list[MembershipInfo]:
-    async with _tx(conn):
+    async with owned_tx(conn):
         await _set(conn, "app.user_id", str(user_id))
         cur = await conn.execute(
             "SELECT workspace_id, role_id FROM memberships WHERE user_id = %s ORDER BY created_at",
@@ -191,7 +175,7 @@ async def create_session(
     token = "vzs_" + secrets.token_urlsafe(32)
     csrf = secrets.token_urlsafe(32)
     expires = dt.datetime.now(dt.UTC) + SESSION_ABSOLUTE_TTL
-    async with _tx(conn):
+    async with owned_tx(conn):
         await _set(conn, "app.user_id", str(user_id))
         await conn.execute(
             "INSERT INTO sessions (token_hash, user_id, workspace_id, csrf_token, expires_at) "
@@ -206,7 +190,7 @@ async def resolve_session(conn: AsyncConnection, token: str) -> Principal | None
     if not SESSION_TOKEN_RE.match(token):
         return None
     now = dt.datetime.now(dt.UTC)
-    async with _tx(conn):
+    async with owned_tx(conn):
         await _set(conn, "app.session_hash", _hash(token))
         cur = await conn.execute(
             "SELECT user_id, workspace_id, csrf_token, expires_at, last_seen_at FROM sessions "
@@ -245,7 +229,7 @@ async def resolve_session(conn: AsyncConnection, token: str) -> Principal | None
 
 
 async def destroy_session(conn: AsyncConnection, token: str) -> None:
-    async with _tx(conn):
+    async with owned_tx(conn):
         await _set(conn, "app.session_hash", _hash(token))
         await conn.execute(
             "DELETE FROM sessions WHERE token_hash = decode(%s, 'hex')", (_hash(token),)
@@ -255,7 +239,7 @@ async def destroy_session(conn: AsyncConnection, token: str) -> None:
 async def destroy_user_sessions(
     conn: AsyncConnection, user_id: uuid.UUID, *, except_token: str | None = None
 ) -> None:
-    async with _tx(conn):
+    async with owned_tx(conn):
         await _set(conn, "app.user_id", str(user_id))
         if except_token:
             await conn.execute(
@@ -267,7 +251,7 @@ async def destroy_user_sessions(
 
 
 async def set_password(conn: AsyncConnection, user_id: uuid.UUID, password_hash: str) -> None:
-    async with _tx(conn):
+    async with owned_tx(conn):
         await _set(conn, "app.user_id", str(user_id))
         await conn.execute(
             "UPDATE users SET password_hash = %s WHERE id = %s", (password_hash, user_id)
@@ -285,7 +269,7 @@ class WhoAmI:
 async def who_am_i(conn: AsyncConnection, p: Principal) -> WhoAmI | None:
     if p.user_id is None:
         return None
-    async with _tx(conn):
+    async with owned_tx(conn):
         await _set(conn, "app.user_id", str(p.user_id))
         await _set(conn, "app.workspace_id", str(p.workspace_id))
         cur = await conn.execute(
@@ -308,7 +292,7 @@ class NewInvite:
 
 
 async def superadmin_role_id(conn: AsyncConnection, workspace_id: uuid.UUID) -> uuid.UUID | None:
-    async with _tx(conn):
+    async with owned_tx(conn):
         await _set(conn, "app.workspace_id", str(workspace_id))
         cur = await conn.execute(
             "SELECT id FROM roles WHERE name = %s AND is_locked", (SUPERADMIN_ROLE_NAME,)
@@ -322,7 +306,7 @@ async def create_invite(
 ) -> NewInvite:
     token = "vzi_" + secrets.token_urlsafe(32)
     expires = dt.datetime.now(dt.UTC) + INVITE_TTL
-    async with _tx(conn):
+    async with owned_tx(conn):
         await _set(conn, "app.workspace_id", str(p.workspace_id))
         cur = await conn.execute(
             "INSERT INTO invites "
@@ -349,7 +333,7 @@ async def peek_invite(conn: AsyncConnection, token: str) -> InviteInfo | None:
     """What a link recipient may see before accepting. None for unknown/expired/used links."""
     if not INVITE_TOKEN_RE.match(token):
         return None
-    async with _tx(conn):
+    async with owned_tx(conn):
         await _set(conn, "app.invite_hash", _hash(token))
         cur = await conn.execute(
             "SELECT workspace_id, email, role_id, expires_at FROM invites "
@@ -382,7 +366,7 @@ async def accept_invite(
     """Create the account and membership for a valid invite. Returns the new user's id."""
     if not INVITE_TOKEN_RE.match(token):
         raise AcceptError("This invitation link is not valid.")
-    async with _tx(conn):
+    async with owned_tx(conn):
         await _set(conn, "app.invite_hash", _hash(token))
         # Row lock: two simultaneous accepts of one link cannot both succeed.
         cur = await conn.execute(
@@ -441,7 +425,7 @@ class Member:
 
 
 async def list_members(conn: AsyncConnection, workspace_id: uuid.UUID) -> list[Member]:
-    async with _tx(conn):
+    async with owned_tx(conn):
         await _set(conn, "app.workspace_id", str(workspace_id))
         cur = await conn.execute(
             "SELECT u.id, u.email, u.display_name, r.id, r.name, m.created_at, u.last_login_at "
@@ -454,7 +438,7 @@ async def list_members(conn: AsyncConnection, workspace_id: uuid.UUID) -> list[M
 
 async def role_views_by_user(conn: AsyncConnection, workspace_id: uuid.UUID) -> dict[str, RoleView]:
     """Each member's current role with its permissions (for escalation and last-owner rules)."""
-    async with _tx(conn):
+    async with owned_tx(conn):
         await _set(conn, "app.workspace_id", str(workspace_id))
         cur = await conn.execute(
             "SELECT m.user_id, r.id, r.name, r.is_locked, "
@@ -474,7 +458,7 @@ async def role_views_by_user(conn: AsyncConnection, workspace_id: uuid.UUID) -> 
 async def role_view(
     conn: AsyncConnection, workspace_id: uuid.UUID, role_id: uuid.UUID
 ) -> RoleView | None:
-    async with _tx(conn):
+    async with owned_tx(conn):
         await _set(conn, "app.workspace_id", str(workspace_id))
         cur = await conn.execute(
             "SELECT r.id, r.name, r.is_locked, "

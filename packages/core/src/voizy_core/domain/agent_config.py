@@ -94,6 +94,47 @@ def _empty_object_schema() -> dict[str, object]:
     return {"type": "object"}
 
 
+_HEADER_NAME = re.compile(r"^[A-Za-z][A-Za-z0-9-]{0,63}$")
+_SECRET_NAME = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
+# Headers a credential must never be placed in: they would corrupt or hijack the request.
+_FORBIDDEN_HEADERS = frozenset(
+    {
+        "host",
+        "content-length",
+        "transfer-encoding",
+        "connection",
+        "upgrade",
+        "te",
+        "trailer",
+        "proxy-authorization",
+        "cookie",
+        "content-type",
+    }
+)
+
+
+class HttpAuth(_Strict):
+    """How a tool authenticates. The credential itself lives in the encrypted secret store and is
+    referenced by name; it never appears in a config, a log, or anything the model sees."""
+
+    kind: Literal["bearer", "header", "basic"]
+    secret: str
+    header_name: str | None = None  # only for kind="header", e.g. "X-Api-Key"
+
+    @model_validator(mode="after")
+    def _valid(self) -> HttpAuth:
+        if not _SECRET_NAME.match(self.secret):
+            raise ValueError("secret must be a snake_case name (letters, digits, underscores)")
+        if self.kind == "header":
+            if not self.header_name or not _HEADER_NAME.match(self.header_name):
+                raise ValueError("header auth needs a valid header name")
+            if self.header_name.lower() in _FORBIDDEN_HEADERS:
+                raise ValueError(f"{self.header_name} cannot carry a credential")
+        elif self.header_name is not None:
+            raise ValueError("header_name is only used with header auth")
+        return self
+
+
 class HttpTool(_Strict):
     kind: Literal["http"] = "http"
     name: str
@@ -101,8 +142,7 @@ class HttpTool(_Strict):
     url: HttpUrl
     method: Literal["GET", "POST", "PUT", "PATCH", "DELETE"] = "POST"
     parameters_schema: dict[str, object] = Field(default_factory=_empty_object_schema)
-    # Secrets are referenced by name and resolved server-side; never stored inline.
-    auth_secret_ref: str | None = Field(default=None, max_length=128)
+    auth: HttpAuth | None = None
     timeout_s: float = Field(default=5.0, gt=0, le=15)
     filler: FillerPolicy = Field(default_factory=FillerPolicy)
     # Run on the interim transcript before the caller finishes. Read-only (GET) tools only.

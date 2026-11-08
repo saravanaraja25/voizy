@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
+import json
 import logging
 import os
 import time
 
-from livekit import agents
+from livekit import agents, rtc
 from livekit.agents import (
     Agent,
     AgentSession,
@@ -54,6 +56,19 @@ server = agents.AgentServer()
 _pool: AsyncConnectionPool | None = None
 
 
+_background: set[asyncio.Task[None]] = set()  # keep references so tasks are not collected early
+
+
+async def _publish_latency(room: rtc.Room, ms: dict[str, int]) -> None:
+    """Send a turn's timings (numbers only, no personal data) to the connected client."""
+    try:
+        await room.local_participant.publish_data(
+            json.dumps({"type": "turn_latency", "ms": ms}), reliable=True, topic="voizy.latency"
+        )
+    except Exception:  # noqa: BLE001 - telemetry must never break a call
+        log.warning("could not publish latency data")
+
+
 def prewarm(proc: agents.JobProcess) -> None:
     """Load heavy models once per worker process, before any call arrives."""
     proc.userdata["vad_cache"] = {}
@@ -84,13 +99,17 @@ async def entrypoint(ctx: JobContext) -> None:
     parts = build_pipeline(cfg, InferenceProviders())
     recorder = LatencyRecorder()
 
+    # Loading a model is blocking work; keep it off the event loop that carries call audio.
+    vad = await asyncio.to_thread(
+        get_vad, ctx.proc.userdata["vad_cache"], cfg.turn, silero.VAD.load
+    )
     handling = turn_handling(cfg.turn)
     handling["turn_detection"] = inference.TurnDetector()
     session: AgentSession[None] = AgentSession(
         stt=parts.stt,
         llm=parts.llm,
         tts=parts.tts,
-        vad=get_vad(ctx.proc.userdata["vad_cache"], cfg.turn, silero.VAD.load),
+        vad=vad,
         turn_handling=handling,  # type: ignore[arg-type]
     )
 
@@ -104,7 +123,11 @@ async def entrypoint(ctx: JobContext) -> None:
             recorder.ingest_message(item.role, item.metrics)
             if len(recorder.turns()) > before:
                 t = recorder.turns()[-1]
-                log.info("turn latency: %s", {k: round(v * 1000) for k, v in vars(t).items() if v})
+                ms = {k.removesuffix("_s"): round(v * 1000) for k, v in vars(t).items() if v}
+                log.info("turn latency: %s", ms)
+                task = asyncio.create_task(_publish_latency(ctx.room, ms))
+                _background.add(task)
+                task.add_done_callback(_background.discard)
 
     if TRACE:
 

@@ -16,6 +16,9 @@ _RULES = """\
 - You are speaking aloud on a phone call. Use short, natural spoken sentences. Never use lists, \
 markdown, emoji or read out symbols.
 - You can only do what your tools allow. Your tools: {tools}.
+- Only state facts that appear in your instructions or in a tool result: hours, prices, \
+locations, policies, names. If you do not have a fact, say you do not have that information and \
+offer what you can do. Never guess or invent details.
 - Never say you will check, look up, book, send, transfer or confirm something unless you have a \
 tool that does exactly that. If you cannot, say so plainly in one sentence and offer what you \
 can do instead, such as answering from the information above or taking a message for a callback.

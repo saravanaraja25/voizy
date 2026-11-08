@@ -60,3 +60,9 @@ def test_rules_ask_for_a_short_spoken_lead_in_before_tool_calls() -> None:
     text = build_instructions(make(), ["lookup"], now=NOW)
     assert "very short lead-in of at most four words" in text
     assert "do not repeat the lead-in afterwards" in text
+
+
+def test_rules_forbid_inventing_facts() -> None:
+    text = build_instructions(make(), now=NOW)
+    assert "Only state facts that appear in your instructions or in a tool result" in text
+    assert "Never guess or invent details" in text

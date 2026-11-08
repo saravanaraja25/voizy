@@ -14,6 +14,7 @@ from voizy_core.security.authz import AuthzError
 from voizy_api.livekit import LiveKitSettings
 from voizy_api.routes.access import router as access_router
 from voizy_api.routes.agents import router as agents_router
+from voizy_api.routes.catalog import router as catalog_router
 from voizy_api.routes.session import router as session_router
 from voizy_api.web.middleware import SecurityMiddleware
 
@@ -61,6 +62,7 @@ def create_app(
         )
     app.include_router(agents_router)
     app.include_router(session_router)
+    app.include_router(catalog_router)
     app.include_router(access_router)
 
     @app.exception_handler(AuthzError)

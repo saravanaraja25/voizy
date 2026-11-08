@@ -4,14 +4,13 @@ from __future__ import annotations
 
 import logging
 import os
-from datetime import UTC, datetime
 
 from livekit import agents
 from livekit.agents import Agent, AgentSession, ConversationItemAddedEvent, JobContext, inference
 from livekit.plugins import silero
 from psycopg_pool import AsyncConnectionPool
 from voizy_core.db.pool import open_pool
-from voizy_core.domain.agent_config import SYSTEM_VARIABLES, AgentConfig, render_prompt
+from voizy_core.domain.agent_config import AgentConfig
 
 from voizy_agent.config_source import (
     ConfigNotFoundError,
@@ -19,11 +18,15 @@ from voizy_agent.config_source import (
     load_published_config,
     parse_job_metadata,
 )
+from voizy_agent.instructions import build_instructions
 from voizy_agent.latency import LatencyRecorder
 from voizy_agent.providers import InferenceProviders, build_pipeline
 from voizy_agent.session_options import turn_handling
 
 log = logging.getLogger("livekit.agents.voizy")  # inherits LiveKit's log config
+# Tools the runtime has actually wired up. The model is told this list and nothing else.
+REGISTERED_TOOLS: tuple[str, ...] = ()
+
 server = agents.AgentServer()
 _pool: AsyncConnectionPool | None = None
 
@@ -47,13 +50,6 @@ async def _config_for(ctx: JobContext) -> AgentConfig:
     if dev:
         return load_dev_config(dev)
     raise ConfigNotFoundError("no dispatch metadata and VOIZY_DEV_AGENT_CONFIG is not set")
-
-
-def _prompt(cfg: AgentConfig) -> str:
-    values = {v.name: v.default or "" for v in cfg.variables}
-    values.update({"agent_name": cfg.name, "current_time": datetime.now(UTC).isoformat()})
-    values.update({k: "" for k in SYSTEM_VARIABLES if k not in values})
-    return render_prompt(cfg.system_prompt, values)
 
 
 @server.rtc_session(agent_name=os.environ.get("VOIZY_AGENT_NAME", ""))
@@ -87,7 +83,9 @@ async def entrypoint(ctx: JobContext) -> None:
 
     ctx.add_shutdown_callback(_log_summary)
 
-    await session.start(agent=Agent(instructions=_prompt(cfg)), room=ctx.room)
+    await session.start(
+        agent=Agent(instructions=build_instructions(cfg, REGISTERED_TOOLS)), room=ctx.room
+    )
     greeting = next((lang.greeting for lang in cfg.languages if lang.greeting), None)
     if greeting:
         await session.say(greeting)

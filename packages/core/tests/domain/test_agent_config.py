@@ -138,3 +138,11 @@ def test_realtime_mode_rules() -> None:
         AgentConfig.model_validate({**base(), "mode": "realtime", "realtime": rt})
     with pytest.raises(ValidationError, match="only valid in realtime mode"):
         AgentConfig.model_validate({**base(), "realtime": rt})
+
+
+def test_plain_http_allowed_only_for_loopback_hosts() -> None:
+    for host in ("http://localhost:8099/a", "http://127.0.0.1:8099/a"):
+        AgentConfig.model_validate(base(tools=[http_tool(url=host)]))
+    for bad in ("http://example.com/a", "http://10.0.0.5/a", "http://169.254.169.254/a"):
+        with pytest.raises(ValidationError, match="https"):
+            AgentConfig.model_validate(base(tools=[http_tool(url=bad)]))

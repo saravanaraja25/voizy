@@ -10,6 +10,10 @@ from pydantic import BaseModel, ConfigDict, Field, HttpUrl, model_validator
 _TEMPLATE_VAR = re.compile(r"\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}")
 _TOOL_NAME = re.compile(r"^[a-z][a-z0-9_]{0,47}$")
 
+# Plain http is accepted in a config only for these hosts (local development against a mock). The
+# runtime's SSRF policy still refuses them unless development mode is explicitly enabled.
+LOOPBACK_HOSTS: frozenset[str] = frozenset({"localhost", "127.0.0.1", "[::1]"})
+
 # Variables the runtime always provides to prompts.
 SYSTEM_VARIABLES: frozenset[str] = frozenset(
     {"agent_name", "current_time", "caller_number", "called_number", "call_direction"}
@@ -108,7 +112,8 @@ class HttpTool(_Strict):
     def _valid_name(self) -> HttpTool:
         if not _TOOL_NAME.match(self.name):
             raise ValueError("tool name must be snake_case, start with a letter, max 48 chars")
-        if self.url.scheme != "https":
+        loopback_http = self.url.scheme == "http" and self.url.host in LOOPBACK_HOSTS
+        if self.url.scheme != "https" and not loopback_http:
             raise ValueError("http tools must use https")
         if self.speculative and self.method != "GET":
             raise ValueError("speculative execution is only allowed for GET tools")

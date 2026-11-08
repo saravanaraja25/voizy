@@ -1,5 +1,5 @@
 import pytest
-from voizy_core.security.ssrf import Resolver, SsrfError, resolve_safe
+from voizy_core.security.ssrf import Resolver, SsrfError, SsrfPolicy, resolve_safe
 
 
 def fixed(*addrs: str) -> Resolver:
@@ -67,3 +67,46 @@ def test_unresolvable_host_rejected() -> None:
 
     with pytest.raises(SsrfError, match="could not resolve"):
         resolve_safe("https://nope.invalid/", resolver=boom)
+
+
+DEV = SsrfPolicy(allow_loopback=True)
+
+
+def test_strict_policy_blocks_loopback_http_even_for_literal_localhost() -> None:
+    for url in ("http://127.0.0.1:8099/x", "https://127.0.0.1/x", "http://localhost:8099/x"):
+        with pytest.raises(SsrfError):
+            resolve_safe(url, resolver=fixed("127.0.0.1"))
+
+
+def test_dev_policy_allows_loopback_http_with_any_port() -> None:
+    t = resolve_safe("http://localhost:8099/x", resolver=fixed("127.0.0.1"), policy=DEV)
+    assert (t.ip, t.port) == ("127.0.0.1", 8099)
+    t = resolve_safe("http://[::1]:9000/x", policy=DEV)
+    assert (t.ip, t.port) == ("::1", 9000)
+
+
+@pytest.mark.parametrize(
+    "ip", ["10.0.0.5", "192.168.1.1", "169.254.169.254", "100.64.0.1", "::ffff:10.0.0.1"]
+)
+def test_dev_policy_still_blocks_private_and_metadata_ranges(ip: str) -> None:
+    with pytest.raises(SsrfError, match="not allowed"):
+        resolve_safe("https://t.example/x", resolver=fixed(ip), policy=DEV)
+    with pytest.raises(SsrfError):
+        resolve_safe("http://t.example:8099/x", resolver=fixed(ip), policy=DEV)
+
+
+def test_dev_policy_rejects_mixed_loopback_and_private_answers() -> None:
+    with pytest.raises(SsrfError):
+        resolve_safe("http://t.example:8099/", resolver=fixed("127.0.0.1", "10.0.0.1"), policy=DEV)
+
+
+def test_dev_policy_does_not_allow_plain_http_to_public_hosts() -> None:
+    with pytest.raises(SsrfError, match="plain http"):
+        resolve_safe("http://t.example:80/x", resolver=fixed("93.184.216.34"), policy=DEV)
+
+
+def test_dev_policy_public_https_still_works_and_bad_port_is_an_error() -> None:
+    t = resolve_safe("https://t.example/x", resolver=fixed("93.184.216.34"), policy=DEV)
+    assert t.ip == "93.184.216.34"
+    with pytest.raises(SsrfError, match="invalid port"):
+        resolve_safe("https://t.example:99999/x", resolver=fixed("93.184.216.34"))

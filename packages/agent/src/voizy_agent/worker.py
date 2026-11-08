@@ -6,11 +6,19 @@ import logging
 import os
 
 from livekit import agents
-from livekit.agents import Agent, AgentSession, ConversationItemAddedEvent, JobContext, inference
+from livekit.agents import (
+    Agent,
+    AgentSession,
+    ConversationItemAddedEvent,
+    JobContext,
+    inference,
+    llm,
+)
 from livekit.plugins import silero
 from psycopg_pool import AsyncConnectionPool
 from voizy_core.db.pool import open_pool
 from voizy_core.domain.agent_config import AgentConfig
+from voizy_core.security.ssrf import STRICT, SsrfPolicy
 
 from voizy_agent.config_source import (
     ConfigNotFoundError,
@@ -18,14 +26,23 @@ from voizy_agent.config_source import (
     load_published_config,
     parse_job_metadata,
 )
+from voizy_agent.http_tool import HttpToolExecutor
 from voizy_agent.instructions import build_instructions
 from voizy_agent.latency import LatencyRecorder
 from voizy_agent.providers import InferenceProviders, build_pipeline
 from voizy_agent.session_options import turn_handling
+from voizy_agent.tools import build_http_tools, tool_names
 
 log = logging.getLogger("livekit.agents.voizy")  # inherits LiveKit's log config
-# Tools the runtime has actually wired up. The model is told this list and nothing else.
-REGISTERED_TOOLS: tuple[str, ...] = ()
+
+
+def _tool_policy() -> SsrfPolicy:
+    """Strict unless development mode is explicitly enabled; even then only loopback opens up."""
+    if os.environ.get("VOIZY_DEV_ALLOW_LOCAL_TOOLS") == "1":
+        log.warning("DEV MODE: tools may call loopback addresses (VOIZY_DEV_ALLOW_LOCAL_TOOLS=1)")
+        return SsrfPolicy(allow_loopback=True)
+    return STRICT
+
 
 server = agents.AgentServer()
 _pool: AsyncConnectionPool | None = None
@@ -55,6 +72,8 @@ async def _config_for(ctx: JobContext) -> AgentConfig:
 @server.rtc_session(agent_name=os.environ.get("VOIZY_AGENT_NAME", ""))
 async def entrypoint(ctx: JobContext) -> None:
     cfg = await _config_for(ctx)
+    tools = build_http_tools(cfg, HttpToolExecutor(_tool_policy()))
+    agent_tools: list[llm.Tool | llm.Toolset] = [*tools]
     parts = build_pipeline(cfg, InferenceProviders())
     recorder = LatencyRecorder()
 
@@ -84,7 +103,8 @@ async def entrypoint(ctx: JobContext) -> None:
     ctx.add_shutdown_callback(_log_summary)
 
     await session.start(
-        agent=Agent(instructions=build_instructions(cfg, REGISTERED_TOOLS)), room=ctx.room
+        agent=Agent(instructions=build_instructions(cfg, tool_names(tools)), tools=agent_tools),
+        room=ctx.room,
     )
     greeting = next((lang.greeting for lang in cfg.languages if lang.greeting), None)
     if greeting:

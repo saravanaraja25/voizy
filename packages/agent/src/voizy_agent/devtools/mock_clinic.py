@@ -10,16 +10,19 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import base64
 import re
 import uuid
 from datetime import date as Date
 from typing import Annotated
 
 import uvicorn
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import PlainTextResponse, RedirectResponse
 from pydantic import BaseModel, ConfigDict, Field
 
+# A well-known key for local development and tests. Not a secret.
+DEV_API_KEY = "dev-clinic-key-0123456789"  # noqa: S105
 SLOTS = ("09:00", "10:30", "14:00", "16:30")
 _TIME = re.compile(r"^\d{2}:\d{2}$")
 
@@ -33,16 +36,38 @@ class AppointmentRequest(BaseModel):
     time: str = Field(pattern=_TIME.pattern)
 
 
-def create_mock_app(delay_ms: int = 0) -> FastAPI:
+def create_mock_app(delay_ms: int = 0, api_key: str | None = None) -> FastAPI:
+    """With api_key set, /availability and /appointments require it (bearer, X-Api-Key or basic)."""
     app = FastAPI(title="Mock clinic", docs_url=None, redoc_url=None)
+    app.state.hits = []  # every authenticated-endpoint request, so tests can see what arrived
     booked: dict[tuple[Date, str], str] = {}
+
+    def authenticate(request: Request) -> str:
+        h = request.headers
+        scheme = None
+        if api_key is None:
+            scheme = "none"
+        elif h.get("authorization") == f"Bearer {api_key}":
+            scheme = "bearer"
+        elif h.get("x-api-key") == api_key:
+            scheme = "header"
+        elif (
+            h.get("authorization")
+            == "Basic " + base64.b64encode(f"clinic:{api_key}".encode()).decode()
+        ):
+            scheme = "basic"
+        app.state.hits.append(scheme)
+        if scheme is None:
+            raise HTTPException(401, "missing or wrong credentials")
+        return scheme
 
     async def pause() -> None:
         if delay_ms:
             await asyncio.sleep(delay_ms / 1000)
 
     @app.get("/availability")
-    async def availability(date: Annotated[Date, Query()]) -> dict[str, object]:
+    async def availability(request: Request, date: Annotated[Date, Query()]) -> dict[str, object]:
+        authenticate(request)
         await pause()
         if date.weekday() == 6:  # Sunday
             return {"date": date.isoformat(), "open": False, "slots": []}
@@ -50,7 +75,8 @@ def create_mock_app(delay_ms: int = 0) -> FastAPI:
         return {"date": date.isoformat(), "open": True, "slots": free}
 
     @app.post("/appointments", status_code=201)
-    async def book(req: AppointmentRequest) -> dict[str, str]:
+    async def book(request: Request, req: AppointmentRequest) -> dict[str, str]:
+        authenticate(request)
         await pause()
         if req.time not in SLOTS or req.date.weekday() == 6:
             raise HTTPException(422, f"no appointments at {req.time} on {req.date.isoformat()}")
@@ -64,6 +90,10 @@ def create_mock_app(delay_ms: int = 0) -> FastAPI:
             "date": req.date.isoformat(),
             "time": req.time,
         }
+
+    @app.get("/whoami")
+    async def whoami(request: Request) -> dict[str, str]:
+        return {"scheme": authenticate(request)}
 
     @app.get("/redirect")
     async def redirect() -> RedirectResponse:
@@ -85,9 +115,13 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Run the mock clinic API (loopback only).")
     parser.add_argument("--port", type=int, default=8099)
     parser.add_argument("--delay-ms", type=int, default=1500)
+    parser.add_argument("--api-key", default=None, help="require this key on the data endpoints")
     args = parser.parse_args()
     uvicorn.run(
-        create_mock_app(args.delay_ms), host="127.0.0.1", port=args.port, log_level="warning"
+        create_mock_app(args.delay_ms, args.api_key),
+        host="127.0.0.1",
+        port=args.port,
+        log_level="warning",
     )
 
 

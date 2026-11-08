@@ -16,7 +16,7 @@ from typing import Any
 from livekit.agents import RunContext, llm
 from voizy_core.domain.agent_config import AgentConfig, FillerPolicy, HttpTool
 
-from voizy_agent.http_tool import HttpToolExecutor
+from voizy_agent.http_tool import HttpToolExecutor, SecretResolver
 
 RawTool = llm.RawFunctionTool[..., Any]
 
@@ -57,11 +57,15 @@ def _filler_timing(policy: FillerPolicy) -> tuple[float, float]:
     return delay, interval
 
 
-def build_http_tools(cfg: AgentConfig, executor: HttpToolExecutor) -> list[RawTool]:
-    return [_build_one(tool, executor) for tool in cfg.tools if isinstance(tool, HttpTool)]
+def build_http_tools(
+    cfg: AgentConfig, executor: HttpToolExecutor, secrets: SecretResolver | None = None
+) -> list[RawTool]:
+    return [_build_one(tool, executor, secrets) for tool in cfg.tools if isinstance(tool, HttpTool)]
 
 
-def _build_one(tool: HttpTool, executor: HttpToolExecutor) -> RawTool:
+def _build_one(
+    tool: HttpTool, executor: HttpToolExecutor, secrets: SecretResolver | None
+) -> RawTool:
     source = filler_source(tool.filler)
     delay, interval = _filler_timing(tool.filler)
 
@@ -73,7 +77,7 @@ def _build_one(tool: HttpTool, executor: HttpToolExecutor) -> RawTool:
         )
         log.info("trace tool start %s @%d", tool.name, time.monotonic() * 1000)
         async with filler:
-            result = await executor.execute(tool, raw_arguments)
+            result = await executor.execute(tool, raw_arguments, secrets)
         log.info(
             "tool call",
             extra={

@@ -35,8 +35,9 @@ class FakeExecutor(HttpToolExecutor):
         self.result = result
         self.seen: list[tuple[str, dict[str, Any]]] = []
 
-    async def execute(self, tool: Any, args: Any) -> ToolResult:
+    async def execute(self, tool: Any, args: Any, secrets: Any = None) -> ToolResult:
         self.seen.append((tool.name, dict(args)))
+        self.secrets = secrets
         return self.result
 
 

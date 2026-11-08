@@ -8,15 +8,17 @@ never reveals URLs, addresses or exception internals to the model.
 from __future__ import annotations
 
 import asyncio
+import base64
 import socket
 import time
-from collections.abc import Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
 import aiohttp
 from aiohttp.abc import AbstractResolver, ResolveResult
-from voizy_core.domain.agent_config import HttpTool
+from voizy_core.domain.agent_config import HttpAuth, HttpTool
+from voizy_core.security.hosts import host_allowed
 from voizy_core.security.ssrf import (
     STRICT,
     Resolver,
@@ -25,6 +27,10 @@ from voizy_core.security.ssrf import (
     SsrfPolicy,
     resolve_safe,
 )
+from voizy_core.services.secrets_store import ResolvedSecret
+
+# Looks up a tool credential by name. Returns None when it is missing or unreadable.
+SecretResolver = Callable[[str], Awaitable["ResolvedSecret | None"]]
 
 TRUNCATED = " …[truncated]"
 _SCALARS = (str, int, float, bool)
@@ -36,6 +42,14 @@ class ToolResult:
     text: str  # safe to give to the model
     status: int | None
     duration_s: float
+
+
+def _auth_headers(auth: HttpAuth, value: str) -> dict[str, str]:
+    if auth.kind == "bearer":
+        return {"Authorization": f"Bearer {value}"}
+    if auth.kind == "basic":
+        return {"Authorization": "Basic " + base64.b64encode(value.encode()).decode()}
+    return {str(auth.header_name): value}
 
 
 class _PinnedResolver(AbstractResolver):
@@ -84,7 +98,12 @@ class HttpToolExecutor:
             return resolve_safe(url, policy=self._policy)
         return resolve_safe(url, resolver=self._resolver, policy=self._policy)
 
-    async def execute(self, tool: HttpTool, args: Mapping[str, Any]) -> ToolResult:
+    async def execute(
+        self,
+        tool: HttpTool,
+        args: Mapping[str, Any],
+        secrets: SecretResolver | None = None,
+    ) -> ToolResult:
         started = time.perf_counter()
 
         def done(ok: bool, text: str, status: int | None = None) -> ToolResult:
@@ -101,13 +120,24 @@ class HttpToolExecutor:
                 kwargs["json"] = dict(args)
 
             target = await asyncio.to_thread(self._resolve, url)
+            headers: dict[str, str] = {}
+            if tool.auth is not None:
+                # Resolve the credential only now, and only send it where it is allowed to go.
+                secret = await secrets(tool.auth.secret) if secrets else None
+                if secret is None:
+                    return done(False, "the tool's credential is not configured")
+                if not host_allowed(target.host, secret.allowed_hosts):
+                    return done(False, "the tool's credential is not allowed for that address")
+                headers = _auth_headers(tool.auth, secret.value)
             connector = aiohttp.TCPConnector(
                 resolver=_PinnedResolver(target.ip), use_dns_cache=False
             )
             timeout = aiohttp.ClientTimeout(total=tool.timeout_s)
             async with (
                 aiohttp.ClientSession(connector=connector, timeout=timeout) as session,
-                session.request(tool.method, url, allow_redirects=False, **kwargs) as resp,
+                session.request(
+                    tool.method, url, allow_redirects=False, headers=headers, **kwargs
+                ) as resp,
             ):
                 body = await resp.content.read(self._max_bytes + 1)
                 status = resp.status

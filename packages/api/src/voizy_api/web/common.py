@@ -19,9 +19,17 @@ async def audit(
     **detail: object,
 ) -> None:
     await conn.execute(
-        "INSERT INTO audit_log (workspace_id, actor_api_key_id, action, target_type, target_id, "
-        "detail) VALUES (%s, %s, %s, %s, %s, %s::jsonb)",
-        (p.workspace_id, p.api_key_id, action, target_type, str(target_id), json.dumps(detail)),
+        "INSERT INTO audit_log (workspace_id, actor_user_id, actor_api_key_id, action, "
+        "target_type, target_id, detail) VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb)",
+        (
+            p.workspace_id,
+            p.user_id,
+            p.api_key_id,
+            action,
+            target_type,
+            str(target_id),
+            json.dumps(detail),
+        ),
     )
 
 

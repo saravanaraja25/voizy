@@ -74,6 +74,9 @@ CREATE POLICY session_by_token ON sessions
   USING (token_hash = decode(nullif(current_setting('app.session_hash', true), ''), 'hex'));
 CREATE POLICY session_create ON sessions FOR INSERT
   WITH CHECK (user_id = nullif(current_setting('app.user_id', true), '')::uuid);
+-- A user's own sessions must be *visible* for them to be revoked (DELETE ... WHERE reads rows).
+CREATE POLICY session_own_select ON sessions FOR SELECT
+  USING (user_id = nullif(current_setting('app.user_id', true), '')::uuid);
 CREATE POLICY session_own_delete ON sessions FOR DELETE
   USING (user_id = nullif(current_setting('app.user_id', true), '')::uuid);
 GRANT SELECT, INSERT, DELETE ON sessions TO voizy_app;

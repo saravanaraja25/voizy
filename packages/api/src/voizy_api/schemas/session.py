@@ -10,7 +10,11 @@ from voizy_core.domain.permissions import Permission
 class MeOut(BaseModel):
     workspace_id: uuid.UUID
     workspace_name: str
-    api_key_id: uuid.UUID
+    api_key_id: uuid.UUID | None = None
+    user_id: uuid.UUID | None = None
+    email: str | None = None
+    display_name: str | None = None
+    csrf_token: str | None = None
     permissions: list[Permission]
 
 

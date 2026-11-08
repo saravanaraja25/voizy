@@ -1,4 +1,4 @@
-"""API-key authentication: resolve a bearer token to a workspace-scoped principal."""
+"""Who is calling: an API key or a signed-in user, always scoped to one workspace."""
 
 from __future__ import annotations
 
@@ -14,8 +14,14 @@ from voizy_core.security.apikeys import TOKEN_RE, hash_token
 @dataclass(frozen=True)
 class Principal:
     workspace_id: uuid.UUID
-    api_key_id: uuid.UUID
     permissions: frozenset[Permission]
+    api_key_id: uuid.UUID | None = None  # set when authenticated by API key
+    user_id: uuid.UUID | None = None  # set when authenticated by session
+    csrf_token: str | None = None  # session callers only; required on unsafe requests
+
+    @property
+    def via_session(self) -> bool:
+        return self.user_id is not None
 
 
 async def authenticate_api_key(conn: AsyncConnection, token: str) -> Principal | None:
@@ -42,4 +48,4 @@ async def authenticate_api_key(conn: AsyncConnection, token: str) -> Principal |
             perms.add(Permission(value))
         except ValueError:
             continue  # a stored permission we no longer define grants nothing
-    return Principal(workspace_id, key_id, frozenset(perms))
+    return Principal(workspace_id, frozenset(perms), api_key_id=key_id)

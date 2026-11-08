@@ -22,31 +22,44 @@ class BootstrapResult:
     token: str  # shown once
 
 
+@dataclass(frozen=True)
+class NewWorkspace:
+    id: uuid.UUID
+    role_ids: dict[str, uuid.UUID]
+
+
+async def create_workspace_with_roles(conn: AsyncConnection, name: str) -> NewWorkspace:
+    """Insert a workspace and the seeded roles. The caller owns the surrounding transaction."""
+    workspace_id = uuid.uuid4()
+    await conn.execute("SELECT set_config('app.workspace_id', %s, true)", (str(workspace_id),))
+    await conn.execute("INSERT INTO workspaces (id, name) VALUES (%s, %s)", (workspace_id, name))
+    role_ids: dict[str, uuid.UUID] = {}
+    for role in SEED_ROLES:
+        cur = await conn.execute(
+            "INSERT INTO roles (workspace_id, name, is_system, is_locked) "
+            "VALUES (%s, %s, true, %s) RETURNING id",
+            (workspace_id, role.name, role.is_locked),
+        )
+        row = await cur.fetchone()
+        if row is None:
+            raise RuntimeError("role insert returned no row")
+        role_ids[role.name] = row[0]
+        for perm in sorted(role.permissions):
+            await conn.execute(
+                "INSERT INTO role_permissions (workspace_id, role_id, permission) "
+                "VALUES (%s, %s, %s)",
+                (workspace_id, row[0], perm.value),
+            )
+    return NewWorkspace(workspace_id, role_ids)
+
+
 async def bootstrap_workspace(
     conn: AsyncConnection, name: str, *, key_name: str = "bootstrap"
 ) -> BootstrapResult:
-    workspace_id = uuid.uuid4()
     key = generate_api_key()
     async with conn.transaction():
-        await conn.execute("SELECT set_config('app.workspace_id', %s, true)", (str(workspace_id),))
-        await conn.execute(
-            "INSERT INTO workspaces (id, name) VALUES (%s, %s)", (workspace_id, name)
-        )
-        for role in SEED_ROLES:
-            cur = await conn.execute(
-                "INSERT INTO roles (workspace_id, name, is_system, is_locked) "
-                "VALUES (%s, %s, true, %s) RETURNING id",
-                (workspace_id, role.name, role.is_locked),
-            )
-            row = await cur.fetchone()
-            if row is None:
-                raise RuntimeError("role insert returned no row")
-            for perm in sorted(role.permissions):
-                await conn.execute(
-                    "INSERT INTO role_permissions (workspace_id, role_id, permission) "
-                    "VALUES (%s, %s, %s)",
-                    (workspace_id, row[0], perm.value),
-                )
+        ws = await create_workspace_with_roles(conn, name)
+        workspace_id = ws.id
         cur = await conn.execute(
             "INSERT INTO api_keys (workspace_id, name, prefix, key_hash, permissions) "
             "VALUES (%s, %s, %s, %s, %s) RETURNING id",

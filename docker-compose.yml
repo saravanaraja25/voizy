@@ -1,5 +1,15 @@
-# Local/self-host stack: Postgres, one-shot migrations, API. Copy .env.example to .env first.
+# The whole stack: Postgres, one-shot migrations, API, voice worker and dashboard.
+#   cp .env.example .env   # set the passwords and VOIZY_SECRET_KEYS
+#   docker compose up --build
+# Then open http://localhost:8080 and follow the first-run screen (the setup token is in the API log:
+#   docker compose logs api | grep "setup token").
+# Only the dashboard's port is published; it proxies /v1 to the API, so the browser sees one origin.
 name: voizy-oss  # distinct project name so volumes never collide with other stacks
+
+x-app-env: &app-env
+  VOIZY_DATABASE_URL: postgresql://voizy_api:${VOIZY_APP_DB_PASSWORD}@postgres:5432/voizy
+  # Encrypts stored integration keys and tool credentials. Generate: voizy-admin generate-secret-key
+  VOIZY_SECRET_KEYS: ${VOIZY_SECRET_KEYS:?set in .env (voizy-admin generate-secret-key)}
 
 services:
   postgres:
@@ -21,7 +31,7 @@ services:
       - "127.0.0.1:${VOIZY_PG_PORT:-5433}:5432"
 
   migrate:
-    build: .
+    build: { context: ., target: api }
     image: voizy-api:local
     command: ["voizy-admin", "migrate"]
     environment:
@@ -32,20 +42,51 @@ services:
         condition: service_healthy
 
   api:
-    build: .
+    build: { context: ., target: api }
     image: voizy-api:local
     environment:
-      VOIZY_DATABASE_URL: postgresql://voizy_api:${VOIZY_APP_DB_PASSWORD}@postgres:5432/voizy
-      # Encrypts stored integration keys and tool credentials. Generate: voizy-admin generate-secret-key
-      VOIZY_SECRET_KEYS: ${VOIZY_SECRET_KEYS:?set in .env (voizy-admin generate-secret-key)}
-      VOIZY_CORS_ORIGINS: ${VOIZY_CORS_ORIGINS:-}
-      VOIZY_COOKIE_SECURE: ${VOIZY_COOKIE_SECURE:-1}
+      <<: *app-env
+      # The origins the dashboard is served from (checked on every write, alongside the CSRF token).
+      VOIZY_CORS_ORIGINS: ${VOIZY_PUBLIC_ORIGINS:-http://localhost:8080,http://127.0.0.1:8080}
+      # Plain http on localhost needs this off. Turn it ON (the default elsewhere) behind TLS.
+      VOIZY_COOKIE_SECURE: ${VOIZY_COOKIE_SECURE:-0}
+      VOIZY_SETUP_TOKEN: ${VOIZY_SETUP_TOKEN:-}
     depends_on:
       migrate:
         condition: service_completed_successfully
-    ports:
-      - "127.0.0.1:${VOIZY_API_PORT:-8000}:8000"
+    # No published port: only the dashboard's proxy can reach the API.
     read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+
+  agent:
+    build: { context: ., target: agent }
+    image: voizy-agent:local
+    environment:
+      <<: *app-env
+      # Optional. With these unset the worker waits for LiveKit to be connected in the dashboard.
+      LIVEKIT_URL: ${LIVEKIT_URL:-}
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    read_only: true
+    tmpfs: ["/tmp"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+
+  dashboard:
+    build: ./apps/dashboard
+    image: voizy-dashboard:local
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${VOIZY_PORT:-8080}:8080"
+    read_only: true
+    tmpfs: ["/tmp"]
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
 

@@ -1522,6 +1522,15 @@
       "ProviderChoice": {
         "additionalProperties": false,
         "properties": {
+          "connection": {
+            "default": "livekit",
+            "enum": [
+              "livekit",
+              "own"
+            ],
+            "title": "Connection",
+            "type": "string"
+          },
           "model": {
             "maxLength": 128,
             "minLength": 1,
@@ -2150,6 +2159,15 @@
       "VoiceChoice": {
         "additionalProperties": false,
         "properties": {
+          "connection": {
+            "default": "livekit",
+            "enum": [
+              "livekit",
+              "own"
+            ],
+            "title": "Connection",
+            "type": "string"
+          },
           "model": {
             "maxLength": 128,
             "minLength": 1,

@@ -4,28 +4,42 @@ import type { TabProps } from '@/components/field'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
+import { DIRECT_PROVIDERS, supportsOwnKey } from '@/lib/direct'
+import type { Connection, Kind } from '@/lib/direct'
 
 interface Choice {
   provider: string
   model: string
+  connection?: Connection
 }
 
 const idOf = (c: Choice) => `${c.provider}/${c.model}`
 
+/** Switching model keeps the connection choice only where the new provider still supports it. */
+function pick<T extends Choice>(prev: T | null | undefined, next: Choice, kind: Kind): T {
+  const connection: Connection =
+    prev?.connection === 'own' && supportsOwnKey(kind, next.provider) ? 'own' : 'livekit'
+  return { ...prev, provider: next.provider, model: next.model, connection } as T
+}
+
 function ModelSelect({
   id,
+  kind,
   label,
   options,
   value,
   onSelect,
+  onConnection,
   disabled,
   error,
 }: {
   id: string
+  kind: Kind
   label: string
   options: ModelOut[]
   value: Choice | null | undefined
   onSelect: (c: Choice) => void
+  onConnection: (c: Connection) => void
   disabled?: boolean
   error?: string
 }) {
@@ -58,6 +72,30 @@ function ModelSelect({
           ))}
         </SelectContent>
       </Select>
+      {value && supportsOwnKey(kind, value.provider) && (
+        <div className="mt-2 flex items-center gap-2 text-sm">
+          <label htmlFor={`${id}-connection`} className="text-muted-foreground shrink-0">
+            Connect via
+          </label>
+          <Select
+            value={value.connection ?? 'livekit'}
+            items={[
+              { value: 'livekit', label: 'LiveKit' },
+              { value: 'own', label: `My ${DIRECT_PROVIDERS[kind][value.provider]} key` },
+            ]}
+            disabled={disabled}
+            onValueChange={(v) => v && onConnection(v as Connection)}
+          >
+            <SelectTrigger id={`${id}-connection`} size="sm" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="livekit">LiveKit</SelectItem>
+              <SelectItem value="own">My {DIRECT_PROVIDERS[kind][value.provider]} key</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
     </Field>
   )
 }
@@ -77,33 +115,43 @@ export function VoiceTab({
       <div className="grid gap-6 md:grid-cols-2">
         <ModelSelect
           id="stt-model"
+          kind="stt"
           label="Speech recognition"
           options={cat.stt}
           value={config.stt}
           disabled={disabled}
           error={errors.stt}
-          onSelect={(c) => onChange({ ...config, stt: c })}
+          onSelect={(c) => onChange({ ...config, stt: pick(config.stt, c, 'stt') })}
+          onConnection={(connection) =>
+            config.stt && onChange({ ...config, stt: { ...config.stt, connection } })
+          }
         />
         <ModelSelect
           id="llm-model"
+          kind="llm"
           label="Language model"
           options={cat.llm}
           value={config.llm}
           disabled={disabled}
           error={errors.llm}
-          onSelect={(c) => onChange({ ...config, llm: c })}
+          onSelect={(c) => onChange({ ...config, llm: pick(config.llm, c, 'llm') })}
+          onConnection={(connection) =>
+            config.llm && onChange({ ...config, llm: { ...config.llm, connection } })
+          }
         />
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
         <ModelSelect
           id="tts-model"
+          kind="tts"
           label="Voice model"
           options={cat.tts}
           value={tts}
           disabled={disabled}
           error={errors.tts}
-          onSelect={(c) => tts && onChange({ ...config, tts: { ...tts, ...c } })}
+          onSelect={(c) => tts && onChange({ ...config, tts: pick(tts, c, 'tts') })}
+          onConnection={(connection) => tts && onChange({ ...config, tts: { ...tts, connection } })}
         />
         <Field
           label="Voice ID"

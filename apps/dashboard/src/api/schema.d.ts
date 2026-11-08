@@ -1087,6 +1087,12 @@ export interface components {
         };
         /** ProviderChoice */
         ProviderChoice: {
+            /**
+             * Connection
+             * @default livekit
+             * @enum {string}
+             */
+            connection: "livekit" | "own";
             /** Model */
             model: string;
             /** Params */
@@ -1337,6 +1343,12 @@ export interface components {
         };
         /** VoiceChoice */
         VoiceChoice: {
+            /**
+             * Connection
+             * @default livekit
+             * @enum {string}
+             */
+            connection: "livekit" | "own";
             /** Model */
             model: string;
             /** Params */

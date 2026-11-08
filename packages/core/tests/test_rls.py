@@ -7,8 +7,7 @@ import uuid
 
 import psycopg
 import pytest
-
-from tests.conftest import app_conn
+from voizy_core.testing import app_conn
 
 
 def use_workspace(conn: psycopg.Connection, wid: uuid.UUID) -> None:

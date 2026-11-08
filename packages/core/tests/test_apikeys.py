@@ -7,8 +7,7 @@ import psycopg
 import pytest
 from voizy_core.apikeys import TOKEN_RE, authenticate_api_key, generate_api_key, hash_token
 from voizy_core.permissions import Permission
-
-from tests.conftest import app_conn
+from voizy_core.testing import app_conn
 
 
 def test_token_shape_hash_and_uniqueness() -> None:

@@ -1,5 +1,8 @@
-"""Database fixtures. Set VOIZY_TEST_ADMIN_URL to a superuser URL on a disposable server;
-each session creates and drops its own database, so nothing else on the server is touched."""
+"""Shared pytest plugin: database fixtures.
+
+Set VOIZY_TEST_ADMIN_URL to a superuser URL on a disposable server; each session creates and
+drops its own database, so nothing else on the server is touched.
+"""
 
 from __future__ import annotations
 
@@ -11,9 +14,9 @@ from pathlib import Path
 import psycopg
 import pytest
 from psycopg import sql
-from psycopg.conninfo import conninfo_to_dict, make_conninfo
+from psycopg.conninfo import make_conninfo
 
-MIGRATIONS = Path(__file__).parents[1] / "src" / "voizy_core" / "migrations"
+MIGRATIONS = Path(__file__).parent / "migrations"
 
 
 @pytest.fixture(scope="session")
@@ -59,7 +62,6 @@ def two_workspaces(admin: psycopg.Connection) -> tuple[uuid.UUID, uuid.UUID]:
 
 def app_conn(dsn: str) -> psycopg.Connection:
     """Connection acting as the unprivileged application role."""
-    assert conninfo_to_dict(dsn)
     conn = psycopg.connect(dsn)
     conn.execute("SET ROLE voizy_app")
     conn.commit()

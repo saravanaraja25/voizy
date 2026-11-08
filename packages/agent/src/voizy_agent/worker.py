@@ -209,7 +209,17 @@ async def entrypoint(ctx: JobContext) -> None:
 
     async def _close_history() -> None:
         if history is not None:
-            await history.close(reason="ended")
+            await history.close(reason="ended")  # idempotent: safe from both paths below
+
+    if history is not None:
+
+        @session.on("close")
+        def _on_close(_: object) -> None:
+            # Close the record when the conversation ends, not when the job process finally exits
+            # (that can lag by many seconds, leaving the call "in progress" in the dashboard).
+            task = asyncio.create_task(_close_history())
+            _background.add(task)
+            task.add_done_callback(_background.discard)
 
     ctx.add_shutdown_callback(_log_summary)
     ctx.add_shutdown_callback(_close_history)

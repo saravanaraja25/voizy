@@ -52,6 +52,7 @@ class CallRecorder:
         self._task: asyncio.Task[None] | None = None
         self._call_id: uuid.UUID | None = None
         self._seq = 0
+        self._closed = False
 
     def start(self) -> None:
         self._task = asyncio.create_task(self._run())
@@ -74,8 +75,9 @@ class CallRecorder:
 
     async def close(self, *, status: calls.FinalStatus = "completed", reason: str = "") -> None:
         """Flush what is queued, then close the call. Bounded so shutdown cannot hang."""
-        if self._task is None:
+        if self._task is None or self._closed:
             return
+        self._closed = True
         try:
             await asyncio.wait_for(self._queue.put(None), CLOSE_TIMEOUT_S)
             await asyncio.wait_for(self._task, CLOSE_TIMEOUT_S)

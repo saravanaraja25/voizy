@@ -1,5 +1,5 @@
 import pytest
-from voizy_core.webhooks import SignatureError, sign, verify
+from voizy_core.security.webhooks import SignatureError, sign, verify
 
 BODY = b'{"event":"call.ended"}'
 

@@ -6,8 +6,8 @@ import httpx
 import psycopg
 import pytest
 from voizy_api.testing import MakeKey, bearer
-from voizy_core.bootstrap import BootstrapResult
-from voizy_core.permissions import ALL_PERMISSIONS, Permission
+from voizy_core.domain.permissions import ALL_PERMISSIONS, Permission
+from voizy_core.services.bootstrap import BootstrapResult
 
 pytestmark = pytest.mark.asyncio
 P = Permission

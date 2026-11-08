@@ -3,81 +3,35 @@
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
 from typing import Annotated, Any
 
 import psycopg
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from psycopg import AsyncConnection
-from pydantic import BaseModel, ConfigDict, Field, field_validator
-from voizy_core.apikeys import Principal, generate_api_key
-from voizy_core.authz import (
+from voizy_core.db.pool import workspace_tx
+from voizy_core.domain.permissions import DANGEROUS_PERMISSIONS, Permission
+from voizy_core.security.apikeys import generate_api_key
+from voizy_core.security.authz import (
     RoleView,
     api_key_permissions,
     check_can_edit_role,
     check_can_grant,
 )
-from voizy_core.db import workspace_tx
-from voizy_core.permissions import DANGEROUS_PERMISSIONS, Permission
+from voizy_core.services.auth import Principal
 
-from voizy_api.auth import require
-from voizy_api.common import audit, not_found, returned
+from voizy_api.schemas.access import (
+    ApiKeyCreate,
+    ApiKeyCreated,
+    ApiKeyOut,
+    PermissionOut,
+    RoleCreate,
+    RoleOut,
+    RoleUpdate,
+)
+from voizy_api.web.auth import require
+from voizy_api.web.common import audit, not_found, returned
 
 router = APIRouter(prefix="/v1", tags=["access"])
-
-
-class _Strict(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-
-class PermissionOut(BaseModel):
-    name: Permission
-    dangerous: bool
-
-
-class RoleCreate(_Strict):
-    name: str = Field(min_length=1, max_length=60)
-    permissions: list[Permission] = Field(max_length=len(Permission))
-
-
-class RoleUpdate(_Strict):
-    name: str | None = Field(default=None, min_length=1, max_length=60)
-    permissions: list[Permission] | None = Field(default=None, max_length=len(Permission))
-
-
-class RoleOut(BaseModel):
-    id: uuid.UUID
-    name: str
-    is_system: bool
-    is_locked: bool
-    permissions: list[Permission]
-
-
-class ApiKeyCreate(_Strict):
-    name: str = Field(min_length=1, max_length=100)
-    permissions: list[Permission] = Field(min_length=1, max_length=len(Permission))
-    expires_at: datetime | None = None
-
-    @field_validator("expires_at")
-    @classmethod
-    def _future(cls, v: datetime | None) -> datetime | None:
-        if v is not None and (v.tzinfo is None or v <= datetime.now(UTC)):
-            raise ValueError("expires_at must be a timezone-aware future time")
-        return v
-
-
-class ApiKeyOut(BaseModel):
-    id: uuid.UUID
-    name: str
-    prefix: str
-    permissions: list[Permission]
-    expires_at: datetime | None
-    revoked_at: datetime | None
-    created_at: datetime
-
-
-class ApiKeyCreated(ApiKeyOut):
-    token: str  # returned exactly once
 
 
 def _view(role_id: str, name: str, locked: bool, perms: list[str]) -> RoleView:

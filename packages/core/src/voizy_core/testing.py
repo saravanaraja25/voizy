@@ -16,7 +16,7 @@ import pytest
 from psycopg import sql
 from psycopg.conninfo import make_conninfo
 
-MIGRATIONS = Path(__file__).parent / "migrations"
+MIGRATIONS = Path(__file__).parent / "db" / "migrations"
 
 
 @pytest.fixture(scope="session")

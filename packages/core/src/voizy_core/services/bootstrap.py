@@ -11,8 +11,8 @@ from dataclasses import dataclass
 
 from psycopg import AsyncConnection
 
-from voizy_core.apikeys import generate_api_key
-from voizy_core.permissions import ALL_PERMISSIONS, SEED_ROLES
+from voizy_core.domain.permissions import ALL_PERMISSIONS, SEED_ROLES
+from voizy_core.security.apikeys import generate_api_key
 
 
 @dataclass(frozen=True)

@@ -5,8 +5,9 @@ from datetime import UTC, datetime, timedelta
 
 import psycopg
 import pytest
-from voizy_core.apikeys import TOKEN_RE, authenticate_api_key, generate_api_key, hash_token
-from voizy_core.permissions import Permission
+from voizy_core.domain.permissions import Permission
+from voizy_core.security.apikeys import TOKEN_RE, generate_api_key, hash_token
+from voizy_core.services.auth import authenticate_api_key
 from voizy_core.testing import app_conn
 
 

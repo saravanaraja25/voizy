@@ -5,7 +5,7 @@ from collections.abc import AsyncIterator
 import httpx
 import pytest
 from voizy_api.testing import bearer
-from voizy_core.bootstrap import BootstrapResult
+from voizy_core.services.bootstrap import BootstrapResult
 
 pytestmark = pytest.mark.asyncio
 

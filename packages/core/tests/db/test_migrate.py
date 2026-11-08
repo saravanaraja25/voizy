@@ -7,8 +7,8 @@ from pathlib import Path
 import psycopg
 import pytest
 from psycopg import sql
-from voizy_core import migrate as migrate_module
-from voizy_core.migrate import MigrationError, migrate
+from voizy_core.db import migrate as migrate_module
+from voizy_core.db.migrate import MigrationError, migrate
 
 
 @pytest.fixture

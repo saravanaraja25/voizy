@@ -1,5 +1,6 @@
 import pytest
-from voizy_core.authz import (
+from voizy_core.domain.permissions import ALL_PERMISSIONS, SEED_ROLES, Permission
+from voizy_core.security.authz import (
     AuthzError,
     RoleView,
     api_key_permissions,
@@ -10,7 +11,6 @@ from voizy_core.authz import (
     check_member_change_keeps_owner,
     parse_permissions,
 )
-from voizy_core.permissions import ALL_PERMISSIONS, SEED_ROLES, Permission
 
 P = Permission
 SUPER = RoleView("r-super", "Superadmin", ALL_PERMISSIONS, is_locked=True)

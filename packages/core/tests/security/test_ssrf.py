@@ -1,5 +1,5 @@
 import pytest
-from voizy_core.ssrf import Resolver, SsrfError, resolve_safe
+from voizy_core.security.ssrf import Resolver, SsrfError, resolve_safe
 
 
 def fixed(*addrs: str) -> Resolver:

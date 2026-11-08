@@ -7,7 +7,7 @@ from typing import Any
 
 from fastapi import HTTPException, status
 from psycopg import AsyncConnection
-from voizy_core.apikeys import Principal
+from voizy_core.services.auth import Principal
 
 
 async def audit(

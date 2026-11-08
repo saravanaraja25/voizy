@@ -7,7 +7,7 @@ import httpx
 import psycopg
 import pytest
 from voizy_api.testing import MakeKey, agent_body, bearer
-from voizy_core.permissions import Permission
+from voizy_core.domain.permissions import Permission
 
 pytestmark = pytest.mark.asyncio
 WS = tuple[uuid.UUID, uuid.UUID]

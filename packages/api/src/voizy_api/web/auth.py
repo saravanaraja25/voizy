@@ -7,8 +7,8 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from voizy_core.apikeys import Principal, authenticate_api_key
-from voizy_core.permissions import Permission
+from voizy_core.domain.permissions import Permission
+from voizy_core.services.auth import Principal, authenticate_api_key
 
 _bearer = HTTPBearer(auto_error=False)
 

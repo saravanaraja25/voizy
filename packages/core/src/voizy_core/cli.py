@@ -9,8 +9,8 @@ import sys
 
 from psycopg import AsyncConnection
 
-from voizy_core.bootstrap import bootstrap_workspace
-from voizy_core.migrate import migrate
+from voizy_core.db.migrate import migrate
+from voizy_core.services.bootstrap import bootstrap_workspace
 
 
 async def _bootstrap(name: str) -> int:

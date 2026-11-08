@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import psycopg
 import pytest
-from voizy_core.apikeys import authenticate_api_key
-from voizy_core.bootstrap import bootstrap_workspace
-from voizy_core.permissions import ALL_PERMISSIONS, SEED_ROLES
+from voizy_core.domain.permissions import ALL_PERMISSIONS, SEED_ROLES
+from voizy_core.services.auth import authenticate_api_key
+from voizy_core.services.bootstrap import bootstrap_workspace
 
 
 @pytest.mark.asyncio

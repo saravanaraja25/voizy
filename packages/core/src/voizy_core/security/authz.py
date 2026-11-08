@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass
 
-from voizy_core.permissions import ALL_PERMISSIONS, Permission
+from voizy_core.domain.permissions import ALL_PERMISSIONS, Permission
 
 
 class AuthzError(Exception):

@@ -7,12 +7,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from psycopg_pool import AsyncConnectionPool
-from voizy_core.authz import AuthzError
-from voizy_core.db import open_pool
+from voizy_core.db.pool import open_pool
+from voizy_core.security.authz import AuthzError
 
-from voizy_api.middleware import SecurityMiddleware
-from voizy_api.routes_access import router as access_router
-from voizy_api.routes_agents import router as agents_router
+from voizy_api.routes.access import router as access_router
+from voizy_api.routes.agents import router as agents_router
+from voizy_api.web.middleware import SecurityMiddleware
 
 
 def create_app(pool: AsyncConnectionPool | None = None) -> FastAPI:

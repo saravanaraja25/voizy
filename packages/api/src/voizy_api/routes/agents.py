@@ -4,16 +4,16 @@ import uuid
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from voizy_core.agent_config import AgentConfig
-from voizy_core.apikeys import Principal
-from voizy_core.db import workspace_tx
-from voizy_core.permissions import Permission
+from voizy_core.db.pool import workspace_tx
+from voizy_core.domain.agent_config import AgentConfig
+from voizy_core.domain.permissions import Permission
+from voizy_core.services.auth import Principal
 
-from voizy_api.auth import require
-from voizy_api.common import audit as _audit
-from voizy_api.common import not_found as _not_found
-from voizy_api.common import returned as _returned
-from voizy_api.schemas import AgentCreate, AgentOut, VersionCreate, VersionOut
+from voizy_api.schemas.agents import AgentCreate, AgentOut, VersionCreate, VersionOut
+from voizy_api.web.auth import require
+from voizy_api.web.common import audit as _audit
+from voizy_api.web.common import not_found as _not_found
+from voizy_api.web.common import returned as _returned
 
 router = APIRouter(prefix="/v1/agents", tags=["agents"])
 

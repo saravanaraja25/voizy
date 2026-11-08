@@ -4,7 +4,7 @@ import uuid
 
 import psycopg
 import pytest
-from voizy_core.db import open_pool, workspace_tx
+from voizy_core.db.pool import open_pool, workspace_tx
 
 
 @pytest.mark.asyncio

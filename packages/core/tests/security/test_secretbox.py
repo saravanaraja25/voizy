@@ -1,5 +1,5 @@
 import pytest
-from voizy_core.secrets import SecretBox, SecretError
+from voizy_core.security.secretbox import SecretBox, SecretError
 
 
 def box(key_id: str = "k1") -> SecretBox:

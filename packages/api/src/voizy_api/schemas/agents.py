@@ -3,20 +3,18 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
-from voizy_core.agent_config import AgentConfig
+from pydantic import BaseModel, Field
+from voizy_core.domain.agent_config import AgentConfig
+
+from voizy_api.schemas.base import StrictModel
 
 
-class _Strict(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-
-class AgentCreate(_Strict):
+class AgentCreate(StrictModel):
     name: str = Field(min_length=1, max_length=100)
     config: AgentConfig
 
 
-class VersionCreate(_Strict):
+class VersionCreate(StrictModel):
     config: AgentConfig
 
 

@@ -10,10 +10,10 @@ import psycopg
 import pytest
 import pytest_asyncio
 from psycopg_pool import AsyncConnectionPool
-from voizy_core.apikeys import generate_api_key
-from voizy_core.bootstrap import BootstrapResult, bootstrap_workspace
-from voizy_core.db import open_pool
-from voizy_core.permissions import ALL_PERMISSIONS
+from voizy_core.db.pool import open_pool
+from voizy_core.domain.permissions import ALL_PERMISSIONS
+from voizy_core.security.apikeys import generate_api_key
+from voizy_core.services.bootstrap import BootstrapResult, bootstrap_workspace
 
 from voizy_api.app import create_app
 

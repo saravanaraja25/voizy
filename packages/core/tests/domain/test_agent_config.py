@@ -1,6 +1,6 @@
 import pytest
 from pydantic import ValidationError
-from voizy_core.agent_config import AgentConfig, render_prompt
+from voizy_core.domain.agent_config import AgentConfig, render_prompt
 
 
 def base(**over: object) -> dict[str, object]:

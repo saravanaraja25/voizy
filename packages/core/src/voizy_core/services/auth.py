@@ -1,25 +1,14 @@
-"""API keys: 256-bit random tokens, stored only as SHA-256, shown once at creation."""
+"""API-key authentication: resolve a bearer token to a workspace-scoped principal."""
 
 from __future__ import annotations
 
-import hashlib
-import re
-import secrets
 import uuid
 from dataclasses import dataclass
 
 from psycopg import AsyncConnection
 
-from voizy_core.permissions import Permission
-
-TOKEN_RE = re.compile(r"^vz_[A-Za-z0-9_-]{43}$")  # 32 random bytes, urlsafe base64, no padding
-
-
-@dataclass(frozen=True)
-class NewApiKey:
-    token: str  # show to the user once; never persisted
-    prefix: str  # safe to display, helps users identify a key
-    key_hash: bytes
+from voizy_core.domain.permissions import Permission
+from voizy_core.security.apikeys import TOKEN_RE, hash_token
 
 
 @dataclass(frozen=True)
@@ -27,15 +16,6 @@ class Principal:
     workspace_id: uuid.UUID
     api_key_id: uuid.UUID
     permissions: frozenset[Permission]
-
-
-def generate_api_key() -> NewApiKey:
-    token = "vz_" + secrets.token_urlsafe(32)
-    return NewApiKey(token=token, prefix=token[:11], key_hash=hash_token(token))
-
-
-def hash_token(token: str) -> bytes:
-    return hashlib.sha256(token.encode()).digest()
 
 
 async def authenticate_api_key(conn: AsyncConnection, token: str) -> Principal | None:

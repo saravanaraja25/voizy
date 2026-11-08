@@ -50,6 +50,32 @@ Rules the code is held to. Each has a test or is marked *planned*.
   tool-call destination checks to the operator-supplied LiveKit URL.
 - Audit entries record that a secret changed and which hosts, never its value.
 
+**Call history and privacy**
+- A transcript is personal data, so what is stored is decided before a row is written, per agent
+  (`policy`): keep transcripts or not (`save_transcripts`), best-effort redaction of emails, card,
+  phone and ID-like numbers including spoken digits (`redact_pii`), and an expiry on every call
+  (`retention_days`; metadata-only calls keep 30 days). Redaction is a safety net, not a guarantee.
+- Tool turns record only the tool name, success and duration, never arguments or results.
+- Transcripts need their own permission (`calls:view_transcript`); deleting a call needs
+  `calls:delete` and is audited. Expired calls are purged hourly and abandoned in-progress calls
+  are closed.
+- Recording is isolated from the call: the audio path only enqueues, one background task writes,
+  and any failure is logged without content and dropped.
+- Worker logs carry no transcript unless `VOIZY_LOG_TRANSCRIPTS=1` (off by default).
+
+**Telephony**
+- The LiveKit inbound trunk accepts SIP only from Twilio's published signaling ranges and only for
+  the connected number. The Twilio auth token is encrypted, write-only and used only server-side.
+- Phone numbers are unique across workspaces; call dispatch metadata is set by the server, never
+  by a caller or browser. Outbound calls need `calls:place_outbound`, explicit consent, a published
+  agent, and are capped per workspace; audit entries keep only the last four digits dialed.
+- Provider-side ids stay server-side; the per-number SIP password exists only inside Twilio and
+  LiveKit. See [TELEPHONY.md](TELEPHONY.md).
+
+**Direct provider keys**
+- A component set to "my key" uses the stored provider key, never silently falls back to LiveKit,
+  and is rejected at save time if the provider is unsupported or the key is missing.
+
 **Secrets**
 - Provider keys and tool credentials are AES-256-GCM encrypted with workspace and name bound as
   associated data, versioned keys for rotation, write-only through the API. Configs reference

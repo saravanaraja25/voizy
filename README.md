@@ -7,16 +7,22 @@ first, Twilio telephony, designed for low latency. See [SCOPE.md](SCOPE.md) for 
 
 ## Status
 
-Early. The control plane (workspaces, custom roles, API keys, agents and versions, audit log) is
-implemented and tested. **Not built yet:** the voice runtime, dashboard, telephony, campaigns,
-human login. Nothing has been measured against real Twilio, LiveKit or STT/TTS/LLM providers, so
-no latency figures are claimed.
+Working end to end on a free LiveKit Cloud project: dashboard accounts, agent builder with versions,
+browser test calls with a per-turn latency chart, HTTP tools with credentials, encrypted provider
+keys, **call history** with redacted transcripts, **direct provider keys**, and **Twilio telephony**
+(inbound, outbound). See [docs/LATENCY.md](docs/LATENCY.md) for measured numbers and
+[docs/TELEPHONY.md](docs/TELEPHONY.md) for exactly what has and has not been verified. **Not built
+yet:** campaigns, knowledge base, post-call summaries and analytics, Tamil. A real PSTN call
+through Twilio has not been placed.
 
 ## Layout
 
 ```
 packages/core   voizy_core: domain/ security/ db/ services/ (models, authz, crypto, RLS schema)
-packages/api    voizy_api:  routes/ schemas/ web/ (FastAPI control plane)
+packages/api    voizy_api:  routes/ schemas/ web/ (FastAPI control plane, telephony provisioning)
+packages/agent  voizy_agent: the generic LiveKit voice worker
+apps/dashboard  React dashboard
+docs/           SECURITY.md, TELEPHONY.md, LATENCY.md
 docker/         Postgres init; docker-compose.yml and Dockerfile at the root
 ```
 
@@ -60,8 +66,21 @@ Set `VOIZY_SECRET_KEYS` on the server (generate with `voizy-admin generate-secre
 connection* button), and save named **tool credentials** that HTTP tools reference by name (each is
 locked to the hosts you list). Values are encrypted, write-only, and never shown again. The voice
 worker uses the saved LiveKit connection when no `LIVEKIT_*` environment variables are set; start it
-after connecting LiveKit. Direct model-provider keys are stored and verified now; agents still reach
-models through LiveKit Inference.
+after connecting LiveKit.
+
+**Direct provider keys.** In an agent's *Voice & models* tab each speech, language and voice model can
+connect through LiveKit (default) or with your own key: Deepgram (speech), OpenAI or Google AI
+(language), Cartesia (voice). Choosing your own key is refused at save time if the key is not set,
+and never silently falls back to LiveKit.
+
+### Calls and phone numbers
+
+**Calls** lists every conversation with status, length and response time; open one for the
+transcript, tool use and a per-turn latency chart. Privacy is per agent (keep transcripts or not,
+redaction, retention days); see [docs/SECURITY.md](docs/SECURITY.md). **Phone** connects Twilio
+numbers (Voizy configures the Twilio trunk and LiveKit SIP for you), assigns the answering agent, and
+places outbound calls: [docs/TELEPHONY.md](docs/TELEPHONY.md). Measure your own latency with
+`scripts/latency_report.py`.
 
 ### First run, accounts and teammates
 

@@ -51,6 +51,9 @@ services:
       # Plain http on localhost needs this off. Turn it ON (the default elsewhere) behind TLS.
       VOIZY_COOKIE_SECURE: ${VOIZY_COOKIE_SECURE:-0}
       VOIZY_SETUP_TOKEN: ${VOIZY_SETUP_TOKEN:-}
+      # Telephony: only needed for self-hosted LiveKit or to override Twilio's signaling ranges.
+      VOIZY_LIVEKIT_SIP_HOST: ${VOIZY_LIVEKIT_SIP_HOST:-}
+      VOIZY_SIP_ALLOWED_ADDRESSES: ${VOIZY_SIP_ALLOWED_ADDRESSES:-}
     depends_on:
       migrate:
         condition: service_completed_successfully

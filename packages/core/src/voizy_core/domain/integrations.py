@@ -74,7 +74,7 @@ INTEGRATIONS: tuple[Integration, ...] = (
             ),
             IntegrationField("twilio_auth_token", "Auth token", pattern=r"^[0-9a-fA-F]{32}$"),
         ),
-        "Inbound and outbound phone calls (stored and verified now; calling comes next).",
+        "Phone numbers: Voizy connects numbers in this account to LiveKit and places calls.",
     ),
     Integration(
         "openai",

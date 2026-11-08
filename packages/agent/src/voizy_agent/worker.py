@@ -27,6 +27,12 @@ from voizy_core.domain.agent_config import AgentConfig, TurnConfig
 from voizy_core.domain.dispatch import AGENT_WORKER_NAME, DispatchTarget, parse_dispatch
 from voizy_core.security.ssrf import STRICT, SsrfPolicy
 
+from voizy_agent.call_control import (
+    CallEnder,
+    SilenceGuard,
+    end_call_tool,
+    enforce_time_limit,
+)
 from voizy_agent.call_recorder import CallRecorder
 from voizy_agent.config_source import (
     ConfigNotFoundError,
@@ -118,7 +124,8 @@ async def entrypoint(ctx: JobContext) -> None:
         resolver = DbSecretResolver(pool, box, workspace_id)
         livekit = await load_livekit(pool, box, workspace_id)
     tools = build_http_tools(cfg, HttpToolExecutor(_tool_policy()), resolver)
-    agent_tools: list[llm.Tool | llm.Toolset] = [*tools]
+    ender = CallEnder(ctx.delete_room)
+    agent_tools: list[llm.Tool | llm.Toolset] = [*tools, end_call_tool(ender)]
     inference_providers = (
         InferenceProviders(livekit.api_key, livekit.api_secret) if livekit else InferenceProviders()
     )
@@ -153,7 +160,19 @@ async def entrypoint(ctx: JobContext) -> None:
         tts=parts.tts,
         vad=vad,
         turn_handling=handling,  # type: ignore[arg-type]
+        user_away_timeout=float(cfg.turn.max_silence_s),
     )
+    guard = SilenceGuard(
+        ender,
+        lambda: session.generate_reply(
+            instructions="Ask briefly whether the caller is still there."
+        ),
+        float(cfg.turn.max_silence_s),
+    )
+
+    @session.on("user_state_changed")
+    def _on_silence(ev: UserStateChangedEvent) -> None:
+        guard.on_state(ev.new_state)
 
     @session.on("conversation_item_added")
     def _on_item(ev: ConversationItemAddedEvent) -> None:
@@ -216,7 +235,9 @@ async def entrypoint(ctx: JobContext) -> None:
 
     async def _close_history() -> None:
         if history is not None:
-            await history.close(reason="ended")  # idempotent: safe from both paths below
+            await history.close(
+                reason=ender.reason or "ended"
+            )  # idempotent: safe from both paths below
 
     if history is not None:
 
@@ -232,7 +253,10 @@ async def entrypoint(ctx: JobContext) -> None:
     ctx.add_shutdown_callback(_close_history)
 
     await session.start(
-        agent=Agent(instructions=build_instructions(cfg, tool_names(tools)), tools=agent_tools),
+        agent=Agent(
+            instructions=build_instructions(cfg, [*tool_names(tools), "end_call"]),
+            tools=agent_tools,
+        ),
         room=ctx.room,
     )
     if target is not None and target.source != "test":
@@ -245,6 +269,15 @@ async def entrypoint(ctx: JobContext) -> None:
                 await history.close(status="failed", reason="not answered")
             ctx.shutdown(reason="not answered")
             return
+
+    async def _stop_limit() -> None:
+        limit.cancel()
+        guard.close()
+
+    limit = asyncio.create_task(enforce_time_limit(ender, cfg.turn.max_call_duration_s))
+    _background.add(limit)
+    limit.add_done_callback(_background.discard)
+    ctx.add_shutdown_callback(_stop_limit)
     greeting = next((lang.greeting for lang in cfg.languages if lang.greeting), None)
     if greeting:
         await session.say(greeting)

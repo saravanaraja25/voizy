@@ -25,7 +25,9 @@ can do instead, such as answering from the information above or taking a message
 - Never leave the caller waiting. If you say you are doing something, do it in the same turn.
 - When you need a tool, first say a very short lead-in of at most four words, such as "One sec." \
 or "Let me check." Say it in the same reply and then call the tool straight away. Never explain \
-what you are about to look up, and do not repeat the lead-in afterwards."""
+what you are about to look up, and do not repeat the lead-in afterwards.
+- When the conversation is finished, say a short goodbye and use end_call to hang up. Never hang \
+up while the caller is still asking or saying something."""
 
 
 def prompt_values(cfg: AgentConfig, *, now: datetime | None = None) -> dict[str, str]:

@@ -67,3 +67,30 @@ Campaign-level consent, do-not-call lists and quiet hours are not built yet.
 - *Twilio refused the request*: the message includes Twilio's reason (for example a taken domain).
 - *Calls ring and drop*: confirm the number is attached to the trunk in the Twilio console and the
   trunk's origination URI matches your LiveKit SIP address.
+
+## Hanging up
+
+Every agent has a built-in `end_call` tool and is told to say goodbye and use it once the caller is
+done. The agent also enforces two limits from its *Turn-taking* settings, which previously did
+nothing: `max_call_duration_s` (hangs up when reached) and `max_silence_s` (asks "are you still
+there?", then hangs up if the caller stays silent for another `max_silence_s`). The recorded end
+reason is one of: `agent ended the call`, `time limit`, `caller silent`, `not answered`, `ended`
+(the other party hung up). A provider-side two-hour cap backs this up on outbound calls.
+
+## Why phone calls feel slower than the browser test
+
+The numbers on the call page are measured inside the worker, so they leave out the phone network.
+Real causes, roughly in order of size (observed on a first outbound test call: 1.1-2.2 s inside the
+worker, plus the legs below):
+
+- **Turn detection waits longer on phone audio.** Phone audio is narrowband and noisier, and short
+  replies ("Okay.", "No.") look unfinished, so the end-of-turn wait hit the 1000 ms maximum on 4 of
+  5 turns, against about 580 ms in the browser. Lower *Max endpointing delay* (try 600-700 ms).
+- **Language model first token** was 850-1330 ms in those calls. A faster model, or your own key
+  for it, is the other big lever.
+- **Distance.** Audio travels caller -> carrier -> Twilio -> LiveKit SIP -> worker and back. If
+  Twilio's edge is far from your LiveKit region, that adds a few hundred milliseconds each way. Pick
+  a Twilio edge and LiveKit region close to your callers.
+- **Carrier and jitter buffers** add roughly 100-300 ms that no software here can remove.
+
+None of the network legs have been measured in Voizy yet.

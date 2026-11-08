@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from typing import Protocol
 
 import httpx
+from google.protobuf.duration_pb2 import Duration
 from livekit import api
 from voizy_core.domain.dispatch import AGENT_WORKER_NAME, DispatchTarget, encode_dispatch
 
@@ -37,6 +38,8 @@ TWILIO_SIGNALING_CIDRS = (
 TWILIO_API = "https://api.twilio.com/2010-04-01"
 TWILIO_TRUNKING = "https://trunking.twilio.com/v1"
 LIVEKIT_SIP_AGENT_ROOM_PREFIX = "call-"
+RING_TIMEOUT_S = 45
+MAX_CALL_S = 7200  # provider-side backstop; the agent enforces its own, shorter limit
 
 
 class TelephonyError(Exception):
@@ -330,6 +333,8 @@ class LiveKitSip:
                     room_name=room,
                     participant_identity=f"phone-{uuid.uuid4().hex[:8]}",
                     wait_until_answered=False,
+                    ringing_timeout=Duration(seconds=RING_TIMEOUT_S),
+                    max_call_duration=Duration(seconds=MAX_CALL_S),
                 )
             )
         return room

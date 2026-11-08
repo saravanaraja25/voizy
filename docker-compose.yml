@@ -1,0 +1,47 @@
+# Local/self-host stack: Postgres, one-shot migrations, API. Copy .env.example to .env first.
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: voizy_admin
+      POSTGRES_PASSWORD: ${VOIZY_ADMIN_DB_PASSWORD:?set in .env}
+      POSTGRES_DB: voizy
+      VOIZY_APP_DB_PASSWORD: ${VOIZY_APP_DB_PASSWORD:?set in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U voizy_admin -d voizy"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    ports:
+      - "127.0.0.1:${VOIZY_PG_PORT:-5433}:5432"
+
+  migrate:
+    build: .
+    image: voizy-api:local
+    command: ["voizy-admin", "migrate"]
+    environment:
+      VOIZY_ADMIN_DATABASE_URL: postgresql://voizy_admin:${VOIZY_ADMIN_DB_PASSWORD}@postgres:5432/voizy
+      VOIZY_APP_LOGIN_ROLE: voizy_api
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build: .
+    image: voizy-api:local
+    environment:
+      VOIZY_DATABASE_URL: postgresql://voizy_api:${VOIZY_APP_DB_PASSWORD}@postgres:5432/voizy
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:${VOIZY_API_PORT:-8000}:8000"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+
+volumes:
+  pgdata:

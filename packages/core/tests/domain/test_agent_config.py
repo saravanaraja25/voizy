@@ -75,3 +75,66 @@ def test_render_prompt_does_not_rescan_substituted_values() -> None:
 
 def test_render_prompt_missing_value_is_empty() -> None:
     assert render_prompt("A{{x}}B", {}) == "AB"
+
+
+def http_tool(**over: object) -> dict[str, object]:
+    return {
+        "kind": "http",
+        "name": "lookup",
+        "description": "d",
+        "url": "https://x.example/a",
+        **over,
+    }
+
+
+def test_tool_latency_defaults_are_safe() -> None:
+    cfg = AgentConfig.model_validate(base(tools=[http_tool()]))
+    tool = cfg.tools[0]
+    assert tool.kind == "http"
+    assert (tool.filler.mode, tool.filler.delay_ms, tool.speculative) == ("auto", 600, False)
+    assert tool.max_result_chars == 2000 and cfg.retrieval.mode == "prefetch"
+
+
+def test_speculative_execution_only_for_get_tools() -> None:
+    AgentConfig.model_validate(base(tools=[http_tool(method="GET", speculative=True)]))
+    with pytest.raises(ValidationError, match="only allowed for GET"):
+        AgentConfig.model_validate(base(tools=[http_tool(method="POST", speculative=True)]))
+
+
+@pytest.mark.parametrize(
+    ("filler", "message"),
+    [
+        ({"mode": "custom"}, "at least one phrase"),
+        ({"mode": "auto", "phrases": ["One sec"]}, "only used in custom mode"),
+        ({"mode": "custom", "phrases": [" "]}, "non-empty"),
+        ({"mode": "custom", "phrases": ["x" * 121]}, "120 characters"),
+    ],
+)
+def test_filler_policy_validation(filler: dict[str, object], message: str) -> None:
+    with pytest.raises(ValidationError, match=message):
+        AgentConfig.model_validate(base(tools=[http_tool(filler=filler)]))
+
+
+def test_custom_filler_accepted() -> None:
+    f = {"mode": "custom", "phrases": ["One moment.", "Let me check."], "delay_ms": 400}
+    AgentConfig.model_validate(base(tools=[http_tool(filler=f)]))
+
+
+def test_pipeline_requires_all_three_stages() -> None:
+    cfg = base()
+    del cfg["llm"]
+    with pytest.raises(ValidationError, match="requires stt, llm and tts"):
+        AgentConfig.model_validate(cfg)
+
+
+def test_realtime_mode_rules() -> None:
+    rt = {"provider": "google", "model": "gemini-live", "voice": "Puck"}
+    ok = {k: v for k, v in base().items() if k not in ("stt", "llm", "tts")}
+    cfg = AgentConfig.model_validate({**ok, "mode": "realtime", "realtime": rt})
+    assert cfg.realtime is not None and cfg.stt is None
+    with pytest.raises(ValidationError, match="requires realtime settings"):
+        AgentConfig.model_validate({**ok, "mode": "realtime"})
+    with pytest.raises(ValidationError, match="only valid in pipeline mode"):
+        AgentConfig.model_validate({**base(), "mode": "realtime", "realtime": rt})
+    with pytest.raises(ValidationError, match="only valid in realtime mode"):
+        AgentConfig.model_validate({**base(), "realtime": rt})

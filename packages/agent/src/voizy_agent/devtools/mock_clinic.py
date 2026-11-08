@@ -95,6 +95,11 @@ def create_mock_app(delay_ms: int = 0, api_key: str | None = None) -> FastAPI:
     async def whoami(request: Request) -> dict[str, str]:
         return {"scheme": authenticate(request)}
 
+    @app.get("/_hits")
+    async def hits() -> list[str]:
+        """Which auth scheme each data request used (None = rejected). For tests and demos."""
+        return [str(h) for h in app.state.hits]
+
     @app.get("/redirect")
     async def redirect() -> RedirectResponse:
         return RedirectResponse("http://169.254.169.254/latest/meta-data/", status_code=302)

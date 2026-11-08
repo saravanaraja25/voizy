@@ -36,6 +36,10 @@ services:
     image: voizy-api:local
     environment:
       VOIZY_DATABASE_URL: postgresql://voizy_api:${VOIZY_APP_DB_PASSWORD}@postgres:5432/voizy
+      # Encrypts stored integration keys and tool credentials. Generate: voizy-admin generate-secret-key
+      VOIZY_SECRET_KEYS: ${VOIZY_SECRET_KEYS:?set in .env (voizy-admin generate-secret-key)}
+      VOIZY_CORS_ORIGINS: ${VOIZY_CORS_ORIGINS:-}
+      VOIZY_COOKIE_SECURE: ${VOIZY_COOKIE_SECURE:-1}
     depends_on:
       migrate:
         condition: service_completed_successfully

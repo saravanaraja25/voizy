@@ -53,13 +53,24 @@ uv run python scripts/export_openapi.py apps/dashboard/openapi.json   # refresh 
 Production builds ship a strict Content-Security-Policy (`<meta>`); also send `frame-ancestors 'none'`
 as an HTTP header, which a meta tag cannot carry. The API key lives in `sessionStorage` (this tab only).
 
+### Keys: LiveKit, Twilio, model providers, tool credentials
+
+Set `VOIZY_SECRET_KEYS` on the server (generate with `voizy-admin generate-secret-key`), then open
+**Settings** in the dashboard: connect LiveKit, Twilio and model providers (each has a *Test
+connection* button), and save named **tool credentials** that HTTP tools reference by name (each is
+locked to the hosts you list). Values are encrypted, write-only, and never shown again. The voice
+worker uses the saved LiveKit connection when no `LIVEKIT_*` environment variables are set; start it
+after connecting LiveKit. Direct model-provider keys are stored and verified now; agents still reach
+models through LiveKit Inference.
+
 ### First run, accounts and teammates
 
 On a fresh database the API logs a line like `FIRST-RUN SETUP: ... setup token: <token>`. Open the
 dashboard, paste that token, and create the workspace and your administrator account; setup then
 closes for good. Invite teammates from **Team** (you get a one-time link to send them; no email
-server is needed). Roles are the permission sets from Settings; you can only hand out roles that
-carry no more access than you have. Set `VOIZY_SETUP_TOKEN` to choose the token yourself.
+server is needed). Everyone you invite is a Superadmin for now; set `VOIZY_ENABLE_ROLES=1` to
+bring back role templates, role management and per-invite roles (you can only hand out roles that
+carry no more access than you have). Set `VOIZY_SETUP_TOKEN` to choose the token yourself.
 
 ## Try the voice agent locally
 

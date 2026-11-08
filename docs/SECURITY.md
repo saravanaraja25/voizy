@@ -36,6 +36,20 @@ Rules the code is held to. Each has a test or is marked *planned*.
 - The browser keeps no credential: identity and the CSRF token live in memory only, the query
   cache is cleared on every session change, and nothing is written to local/session storage.
 
+**Integration keys and tool credentials**
+- Stored per workspace in the encrypted secret store (AES-256-GCM, workspace and name bound as
+  associated data, versioned keyring from `VOIZY_SECRET_KEYS`). Nothing returns a value: the API
+  shows a masked hint, and only non-sensitive fields (a URL, an account id) are shown back.
+- Two kinds that cannot read each other: integration keys (reserved names) and tool credentials.
+  A tool can only resolve `kind = tool`, so it can never reach an integration key.
+- A tool credential is pinned to the hosts it may be sent to (exact or `*.example.com`, never an IP
+  literal). The executor resolves it only after the destination passes the SSRF checks, refuses if
+  the host is not on the list (without revealing the list), never follows redirects, and error
+  messages never carry the value. A tool config names a credential; it never contains one.
+- 'Test connection' makes one read-only call per provider, never follows redirects, and applies the
+  tool-call destination checks to the operator-supplied LiveKit URL.
+- Audit entries record that a secret changed and which hosts, never its value.
+
 **Secrets**
 - Provider keys and tool credentials are AES-256-GCM encrypted with workspace and name bound as
   associated data, versioned keys for rotation, write-only through the API. Configs reference

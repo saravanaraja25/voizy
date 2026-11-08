@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from collections.abc import AsyncIterator
@@ -14,10 +15,12 @@ from voizy_core.security.authz import AuthzError
 from voizy_core.services import accounts
 
 from voizy_api.livekit import LiveKitSettings
+from voizy_api.retention import retention_loop
 from voizy_api.routes.access import roles_router
 from voizy_api.routes.access import router as access_router
 from voizy_api.routes.agents import router as agents_router
 from voizy_api.routes.auth import router as auth_router
+from voizy_api.routes.calls import router as calls_router
 from voizy_api.routes.catalog import router as catalog_router
 from voizy_api.routes.integrations import router as integrations_router
 from voizy_api.routes.session import router as session_router
@@ -52,7 +55,11 @@ def create_app(
                 log.warning(
                     "FIRST-RUN SETUP: open the dashboard and use setup token: %s", cfg.setup_token
                 )
-            yield
+            sweeper = asyncio.create_task(retention_loop(app.state.pool))
+            try:
+                yield
+            finally:
+                sweeper.cancel()
         finally:
             if pool is None:
                 await app.state.pool.close()
@@ -85,6 +92,7 @@ def create_app(
         access_router,
         team_router,
         integrations_router,
+        calls_router,
     ):
         app.include_router(router)
     if cfg.custom_roles:

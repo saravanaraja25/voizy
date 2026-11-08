@@ -21,7 +21,8 @@
     "voice_id": "f786b574-daa5-4673-aa0c-cbe3e8534c02"
   },
   "turn": {
-    "max_endpointing_delay_ms": 1000
+    "max_endpointing_delay_ms": 1000,
+    "vad_min_silence_ms": 420
   },
   "tools": [
     {

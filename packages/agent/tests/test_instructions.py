@@ -54,3 +54,9 @@ def test_variable_values_are_not_expanded_again() -> None:
 def test_forbids_unbacked_promises() -> None:
     text = build_instructions(make(), now=NOW)
     assert "Never say you will check" in text and "Never leave the caller waiting" in text
+
+
+def test_rules_ask_for_a_short_spoken_lead_in_before_tool_calls() -> None:
+    text = build_instructions(make(), ["lookup"], now=NOW)
+    assert "very short lead-in of at most four words" in text
+    assert "do not repeat the lead-in afterwards" in text

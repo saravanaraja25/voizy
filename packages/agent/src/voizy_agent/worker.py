@@ -4,20 +4,24 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 
 from livekit import agents
 from livekit.agents import (
     Agent,
     AgentSession,
+    AgentStateChangedEvent,
     ConversationItemAddedEvent,
+    FunctionToolsExecutedEvent,
     JobContext,
+    UserStateChangedEvent,
     inference,
     llm,
 )
 from livekit.plugins import silero
 from psycopg_pool import AsyncConnectionPool
 from voizy_core.db.pool import open_pool
-from voizy_core.domain.agent_config import AgentConfig
+from voizy_core.domain.agent_config import AgentConfig, TurnConfig
 from voizy_core.security.ssrf import STRICT, SsrfPolicy
 
 from voizy_agent.config_source import (
@@ -30,10 +34,11 @@ from voizy_agent.http_tool import HttpToolExecutor
 from voizy_agent.instructions import build_instructions
 from voizy_agent.latency import LatencyRecorder
 from voizy_agent.providers import InferenceProviders, build_pipeline
-from voizy_agent.session_options import turn_handling
+from voizy_agent.session_options import get_vad, turn_handling
 from voizy_agent.tools import build_http_tools, tool_names
 
 LOG_TRANSCRIPTS = os.environ.get("VOIZY_LOG_TRANSCRIPTS") == "1"
+TRACE = os.environ.get("VOIZY_TRACE") == "1"  # state-change timeline for latency debugging
 log = logging.getLogger("livekit.agents.voizy")  # inherits LiveKit's log config
 
 
@@ -51,7 +56,8 @@ _pool: AsyncConnectionPool | None = None
 
 def prewarm(proc: agents.JobProcess) -> None:
     """Load heavy models once per worker process, before any call arrives."""
-    proc.userdata["vad"] = silero.VAD.load()
+    proc.userdata["vad_cache"] = {}
+    get_vad(proc.userdata["vad_cache"], TurnConfig(), silero.VAD.load)  # default, ready at call 1
 
 
 server.setup_fnc = prewarm
@@ -84,7 +90,7 @@ async def entrypoint(ctx: JobContext) -> None:
         stt=parts.stt,
         llm=parts.llm,
         tts=parts.tts,
-        vad=ctx.proc.userdata["vad"],
+        vad=get_vad(ctx.proc.userdata["vad_cache"], cfg.turn, silero.VAD.load),
         turn_handling=handling,  # type: ignore[arg-type]
     )
 
@@ -99,6 +105,22 @@ async def entrypoint(ctx: JobContext) -> None:
             if len(recorder.turns()) > before:
                 t = recorder.turns()[-1]
                 log.info("turn latency: %s", {k: round(v * 1000) for k, v in vars(t).items() if v})
+
+    if TRACE:
+
+        @session.on("agent_state_changed")
+        def _on_state(ev: AgentStateChangedEvent) -> None:
+            log.info(
+                "trace agent %s -> %s @%d", ev.old_state, ev.new_state, time.monotonic() * 1000
+            )
+
+        @session.on("user_state_changed")
+        def _on_user_state(ev: UserStateChangedEvent) -> None:
+            log.info("trace user %s -> %s @%d", ev.old_state, ev.new_state, time.monotonic() * 1000)
+
+        @session.on("function_tools_executed")
+        def _on_tools(ev: FunctionToolsExecutedEvent) -> None:
+            log.info("trace tools executed @%d", time.monotonic() * 1000)
 
     async def _log_summary() -> None:
         log.info("latency summary (ms): %s", recorder.summary())

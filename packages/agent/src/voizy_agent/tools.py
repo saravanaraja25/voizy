@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import time
 from collections.abc import Callable, Sequence
 from typing import Any
 
@@ -70,6 +71,7 @@ def _build_one(tool: HttpTool, executor: HttpToolExecutor) -> RawTool:
             if source
             else contextlib.nullcontext()
         )
+        log.info("trace tool start %s @%d", tool.name, time.monotonic() * 1000)
         async with filler:
             result = await executor.execute(tool, raw_arguments)
         log.info(

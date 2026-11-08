@@ -44,6 +44,8 @@ class LanguageConfig(_Strict):
 
 class TurnConfig(_Strict):
     vad_threshold: float = Field(default=0.5, ge=0.1, le=0.95)
+    # Silence that ends a speech segment. Lower = faster replies, higher = fewer cut-offs.
+    vad_min_silence_ms: int = Field(default=550, ge=100, le=2000)
     min_endpointing_delay_ms: int = Field(default=300, ge=0, le=3000)
     max_endpointing_delay_ms: int = Field(default=1500, ge=100, le=6000)
     allow_interruptions: bool = True

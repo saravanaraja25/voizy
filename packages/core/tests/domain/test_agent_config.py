@@ -146,3 +146,13 @@ def test_plain_http_allowed_only_for_loopback_hosts() -> None:
     for bad in ("http://example.com/a", "http://10.0.0.5/a", "http://169.254.169.254/a"):
         with pytest.raises(ValidationError, match="https"):
             AgentConfig.model_validate(base(tools=[http_tool(url=bad)]))
+
+
+def test_vad_silence_bounds() -> None:
+    assert (
+        AgentConfig.model_validate(base(turn={"vad_min_silence_ms": 300})).turn.vad_min_silence_ms
+        == 300
+    )
+    for bad in (50, 5000):
+        with pytest.raises(ValidationError):
+            AgentConfig.model_validate(base(turn={"vad_min_silence_ms": bad}))

@@ -19,7 +19,10 @@ markdown, emoji or read out symbols.
 - Never say you will check, look up, book, send, transfer or confirm something unless you have a \
 tool that does exactly that. If you cannot, say so plainly in one sentence and offer what you \
 can do instead, such as answering from the information above or taking a message for a callback.
-- Never leave the caller waiting. If you say you are doing something, do it in the same turn."""
+- Never leave the caller waiting. If you say you are doing something, do it in the same turn.
+- When you need a tool, first say a very short lead-in of at most four words, such as "One sec." \
+or "Let me check." Say it in the same reply and then call the tool straight away. Never explain \
+what you are about to look up, and do not repeat the lead-in afterwards."""
 
 
 def prompt_values(cfg: AgentConfig, *, now: datetime | None = None) -> dict[str, str]:

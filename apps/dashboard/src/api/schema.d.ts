@@ -211,6 +211,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/calls/outbound": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Place Call */
+        post: operations["place_call_v1_calls_outbound_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/calls/summary": {
         parameters: {
             query?: never;
@@ -433,6 +450,42 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/v1/phone-numbers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Numbers */
+        get: operations["list_numbers_v1_phone_numbers_get"];
+        put?: never;
+        /** Connect Number */
+        post: operations["connect_number_v1_phone_numbers_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/phone-numbers/{number_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Disconnect Number */
+        delete: operations["disconnect_number_v1_phone_numbers__number_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Number */
+        patch: operations["update_number_v1_phone_numbers__number_id__patch"];
         trace?: never;
     };
     "/v1/secrets": {
@@ -1037,6 +1090,28 @@ export interface components {
             /** Detail */
             detail: string;
         };
+        /** OutboundCall */
+        OutboundCall: {
+            /**
+             * Agent Id
+             * Format: uuid
+             */
+            agent_id: string;
+            /** Consent Confirmed */
+            consent_confirmed: boolean;
+            /**
+             * From Number Id
+             * Format: uuid
+             */
+            from_number_id: string;
+            /** To */
+            to: string;
+        };
+        /** OutboundCallOut */
+        OutboundCallOut: {
+            /** Room */
+            room: string;
+        };
         /** PasswordChange */
         PasswordChange: {
             /** Current Password */
@@ -1049,6 +1124,46 @@ export interface components {
          * @enum {string}
          */
         Permission: "agents:read" | "agents:create" | "agents:edit" | "agents:publish" | "agents:archive" | "agents:test" | "tools:read" | "tools:manage" | "kb:read" | "kb:manage" | "numbers:read" | "numbers:manage" | "calls:read" | "calls:view_transcript" | "calls:view_recording" | "calls:view_pii" | "calls:export" | "calls:delete" | "calls:place_outbound" | "campaigns:read" | "campaigns:create" | "campaigns:run" | "campaigns:manage_contacts" | "policy:override" | "analytics:read" | "costs:read" | "webhooks:manage" | "provider_keys:manage" | "api_keys:manage" | "members:manage" | "roles:manage" | "settings:manage" | "audit:read";
+        /** PhoneNumberCreate */
+        PhoneNumberCreate: {
+            /** Agent Id */
+            agent_id?: string | null;
+            /** E164 */
+            e164: string;
+            /**
+             * Label
+             * @default
+             */
+            label: string;
+        };
+        /** PhoneNumberOut */
+        PhoneNumberOut: {
+            /** Agent Id */
+            agent_id: string | null;
+            /** Agent Name */
+            agent_name: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** E164 */
+            e164: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Label */
+            label: string;
+        };
+        /** PhoneNumberUpdate */
+        PhoneNumberUpdate: {
+            /** Agent Id */
+            agent_id?: string | null;
+            /** Label */
+            label?: string | null;
+        };
         /** PolicyConfig */
         PolicyConfig: {
             /**
@@ -1823,6 +1938,39 @@ export interface operations {
             };
         };
     };
+    place_call_v1_calls_outbound_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OutboundCall"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutboundCallOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     summary_v1_calls_summary_get: {
         parameters: {
             query?: {
@@ -2254,6 +2402,123 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_numbers_v1_phone_numbers_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PhoneNumberOut"][];
+                };
+            };
+        };
+    };
+    connect_number_v1_phone_numbers_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PhoneNumberCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PhoneNumberOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    disconnect_number_v1_phone_numbers__number_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                number_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_number_v1_phone_numbers__number_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                number_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PhoneNumberUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PhoneNumberOut"];
+                };
             };
             /** @description Validation Error */
             422: {

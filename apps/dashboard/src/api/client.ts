@@ -1,5 +1,7 @@
 import type {
   CallDetailOut,
+  OutboundCall,
+  PhoneNumberOut,
   CallListOut,
   CallSummaryOut,
   AgentConfig,
@@ -144,6 +146,16 @@ export function createClient(options: ClientOptions = {}) {
     callSummary: (days = 7) => request<CallSummaryOut>('GET', `/v1/calls/summary?days=${days}`),
     call: (id: string) => request<CallDetailOut>('GET', `/v1/calls/${encodeURIComponent(id)}`),
     deleteCall: (id: string) => request<void>('DELETE', `/v1/calls/${encodeURIComponent(id)}`),
+    // phone numbers and outbound calls
+    phoneNumbers: () => request<PhoneNumberOut[]>('GET', '/v1/phone-numbers'),
+    connectNumber: (body: { e164: string; label: string; agent_id: string | null }) =>
+      request<PhoneNumberOut>('POST', '/v1/phone-numbers', body),
+    updateNumber: (id: string, body: { agent_id?: string | null; label?: string }) =>
+      request<PhoneNumberOut>('PATCH', `/v1/phone-numbers/${encodeURIComponent(id)}`, body),
+    disconnectNumber: (id: string) =>
+      request<void>('DELETE', `/v1/phone-numbers/${encodeURIComponent(id)}`),
+    placeCall: (body: OutboundCall) =>
+      request<{ room: string }>('POST', '/v1/calls/outbound', body),
     // integrations and tool credentials (write-only: no response ever carries a secret value)
     integrations: () => request<IntegrationOut[]>('GET', '/v1/integrations'),
     saveIntegration: (id: string, values: Record<string, string>) =>

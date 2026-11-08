@@ -47,6 +47,7 @@ from voizy_agent.providers import InferenceProviders, WorkspaceProviders, build_
 from voizy_agent.session_options import get_vad, turn_handling
 from voizy_agent.tools import build_http_tools, tool_names
 
+PICKUP_TIMEOUT_S = 60.0
 LOG_TRANSCRIPTS = os.environ.get("VOIZY_LOG_TRANSCRIPTS") == "1"
 TRACE = os.environ.get("VOIZY_TRACE") == "1"  # state-change timeline for latency debugging
 log = logging.getLogger("livekit.agents.voizy")  # inherits LiveKit's log config
@@ -136,6 +137,7 @@ async def entrypoint(ctx: JobContext) -> None:
             version=version,
             room=ctx.room.name,
             policy=cfg.policy,
+            source=target.source,  # type: ignore[arg-type]
         )
         history.start()
 
@@ -233,6 +235,16 @@ async def entrypoint(ctx: JobContext) -> None:
         agent=Agent(instructions=build_instructions(cfg, tool_names(tools)), tools=agent_tools),
         room=ctx.room,
     )
+    if target is not None and target.source != "test":
+        # Phone calls: speak only once the other person is on the line (an outbound call may ring
+        # for a while, or never be answered).
+        try:
+            await asyncio.wait_for(ctx.wait_for_participant(), PICKUP_TIMEOUT_S)
+        except TimeoutError:
+            if history is not None:
+                await history.close(status="failed", reason="not answered")
+            ctx.shutdown(reason="not answered")
+            return
     greeting = next((lang.greeting for lang in cfg.languages if lang.greeting), None)
     if greeting:
         await session.say(greeting)

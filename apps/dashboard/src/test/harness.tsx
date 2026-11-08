@@ -14,6 +14,9 @@ export const ALL_PERMISSIONS = [
   'calls:read',
   'calls:view_transcript',
   'calls:delete',
+  'calls:place_outbound',
+  'numbers:read',
+  'numbers:manage',
 ]
 
 export interface Call {

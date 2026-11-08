@@ -13,6 +13,7 @@ import { CallsPage } from '@/pages/calls'
 import { AccountPage } from '@/pages/account'
 import { InvitePage } from '@/pages/invite'
 import { NotFoundPage } from '@/pages/not-found'
+import { PhonePage } from '@/pages/phone'
 import { SettingsPage } from '@/pages/settings'
 import { SetupPage } from '@/pages/setup'
 import { TeamPage } from '@/pages/team'
@@ -78,6 +79,7 @@ export function App() {
                   />
                   <Route path="calls" element={<CallsPage />} />
                   <Route path="calls/:id" element={<CallDetailPage />} />
+                  <Route path="phone" element={<PhonePage />} />
                   <Route path="team" element={<TeamPage />} />
                   <Route path="settings" element={<SettingsPage />} />
                   <Route path="account" element={<AccountPage />} />

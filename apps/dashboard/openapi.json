@@ -1379,6 +1379,51 @@
         "title": "Notice",
         "type": "object"
       },
+      "OutboundCall": {
+        "additionalProperties": false,
+        "properties": {
+          "agent_id": {
+            "format": "uuid",
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "consent_confirmed": {
+            "title": "Consent Confirmed",
+            "type": "boolean"
+          },
+          "from_number_id": {
+            "format": "uuid",
+            "title": "From Number Id",
+            "type": "string"
+          },
+          "to": {
+            "pattern": "^\\+[1-9][0-9]{6,14}$",
+            "title": "To",
+            "type": "string"
+          }
+        },
+        "required": [
+          "from_number_id",
+          "agent_id",
+          "to",
+          "consent_confirmed"
+        ],
+        "title": "OutboundCall",
+        "type": "object"
+      },
+      "OutboundCallOut": {
+        "properties": {
+          "room": {
+            "title": "Room",
+            "type": "string"
+          }
+        },
+        "required": [
+          "room"
+        ],
+        "title": "OutboundCallOut",
+        "type": "object"
+      },
       "PasswordChange": {
         "additionalProperties": false,
         "properties": {
@@ -1438,6 +1483,125 @@
         ],
         "title": "Permission",
         "type": "string"
+      },
+      "PhoneNumberCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "agent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Id"
+          },
+          "e164": {
+            "pattern": "^\\+[1-9][0-9]{6,14}$",
+            "title": "E164",
+            "type": "string"
+          },
+          "label": {
+            "default": "",
+            "maxLength": 80,
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "e164"
+        ],
+        "title": "PhoneNumberCreate",
+        "type": "object"
+      },
+      "PhoneNumberOut": {
+        "properties": {
+          "agent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Id"
+          },
+          "agent_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Name"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "e164": {
+            "title": "E164",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "e164",
+          "label",
+          "agent_id",
+          "agent_name",
+          "created_at"
+        ],
+        "title": "PhoneNumberOut",
+        "type": "object"
+      },
+      "PhoneNumberUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "agent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Id"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          }
+        },
+        "title": "PhoneNumberUpdate",
+        "type": "object"
       },
       "PolicyConfig": {
         "additionalProperties": false,
@@ -2991,6 +3155,52 @@
         ]
       }
     },
+    "/v1/calls/outbound": {
+      "post": {
+        "operationId": "place_call_v1_calls_outbound_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OutboundCall"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutboundCallOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Place Call",
+        "tags": [
+          "phone"
+        ]
+      }
+    },
     "/v1/calls/summary": {
       "get": {
         "operationId": "summary_v1_calls_summary_get",
@@ -3629,6 +3839,177 @@
         "summary": "Remove Member",
         "tags": [
           "team"
+        ]
+      }
+    },
+    "/v1/phone-numbers": {
+      "get": {
+        "operationId": "list_numbers_v1_phone_numbers_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PhoneNumberOut"
+                  },
+                  "title": "Response List Numbers V1 Phone Numbers Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Numbers",
+        "tags": [
+          "phone"
+        ]
+      },
+      "post": {
+        "operationId": "connect_number_v1_phone_numbers_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhoneNumberCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhoneNumberOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Connect Number",
+        "tags": [
+          "phone"
+        ]
+      }
+    },
+    "/v1/phone-numbers/{number_id}": {
+      "delete": {
+        "operationId": "disconnect_number_v1_phone_numbers__number_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Number Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Disconnect Number",
+        "tags": [
+          "phone"
+        ]
+      },
+      "patch": {
+        "operationId": "update_number_v1_phone_numbers__number_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Number Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhoneNumberUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhoneNumberOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Number",
+        "tags": [
+          "phone"
         ]
       }
     },

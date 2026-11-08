@@ -8,6 +8,8 @@ import { ThemeProvider } from '@/components/theme-provider'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { AgentsPage } from '@/pages/agents'
+import { CallDetailPage } from '@/pages/call-detail'
+import { CallsPage } from '@/pages/calls'
 import { AccountPage } from '@/pages/account'
 import { InvitePage } from '@/pages/invite'
 import { NotFoundPage } from '@/pages/not-found'
@@ -74,6 +76,8 @@ export function App() {
                       </Suspense>
                     }
                   />
+                  <Route path="calls" element={<CallsPage />} />
+                  <Route path="calls/:id" element={<CallDetailPage />} />
                   <Route path="team" element={<TeamPage />} />
                   <Route path="settings" element={<SettingsPage />} />
                   <Route path="account" element={<AccountPage />} />

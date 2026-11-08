@@ -194,6 +194,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/calls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Calls */
+        get: operations["list_calls_v1_calls_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/calls/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Summary */
+        get: operations["summary_v1_calls_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/calls/{call_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Call */
+        get: operations["get_call_v1_calls__call_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Call */
+        delete: operations["delete_call_v1_calls__call_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/catalog": {
         parameters: {
             query?: never;
@@ -599,6 +651,80 @@ export interface components {
              */
             name: "transfer_call" | "end_call" | "send_sms" | "collect_fields";
         };
+        /** CallDetailOut */
+        CallDetailOut: {
+            call: components["schemas"]["CallOut"];
+            /** Transcript Visible */
+            transcript_visible: boolean;
+            /** Turns */
+            turns: components["schemas"]["TurnOut"][];
+        };
+        /** CallListOut */
+        CallListOut: {
+            /** Items */
+            items: components["schemas"]["CallOut"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+        };
+        /** CallOut */
+        CallOut: {
+            /**
+             * Agent Id
+             * Format: uuid
+             */
+            agent_id: string;
+            /** Agent Name */
+            agent_name: string;
+            /** Agent Version */
+            agent_version: number;
+            /** Duration S */
+            duration_s: number | null;
+            /** End Reason */
+            end_reason: string;
+            /** Ended At */
+            ended_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Latency P50 Ms */
+            latency_p50_ms: number | null;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "test" | "inbound" | "outbound";
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "in_progress" | "completed" | "failed";
+            /** Transcript Stored */
+            transcript_stored: boolean;
+            /** Turn Count */
+            turn_count: number;
+        };
+        /** CallSummaryOut */
+        CallSummaryOut: {
+            /** Avg Duration S */
+            avg_duration_s: number | null;
+            /** Completed */
+            completed: number;
+            /** Days */
+            days: number;
+            /** Failed */
+            failed: number;
+            /** Median Latency Ms */
+            median_latency_ms: number | null;
+            /** Total */
+            total: number;
+        };
         /** CatalogOut */
         CatalogOut: {
             /** Default Voice Id */
@@ -942,6 +1068,11 @@ export interface components {
              * @default 30
              */
             retention_days: number;
+            /**
+             * Save Transcripts
+             * @default true
+             */
+            save_transcripts: boolean;
         };
         /** PostCallConfig */
         PostCallConfig: {
@@ -1118,6 +1249,33 @@ export interface components {
              * @default 0.5
              */
             vad_threshold: number;
+        };
+        /** TurnOut */
+        TurnOut: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Latency */
+            latency: {
+                [key: string]: number;
+            } | null;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "user" | "agent" | "tool";
+            /** Seq */
+            seq: number;
+            /** Text */
+            text: string;
+            /** Tool Ms */
+            tool_ms: number | null;
+            /** Tool Name */
+            tool_name: string | null;
+            /** Tool Ok */
+            tool_ok: boolean | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -1606,6 +1764,132 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Notice"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_calls_v1_calls_get: {
+        parameters: {
+            query?: {
+                agent_id?: string | null;
+                status?: ("in_progress" | "completed" | "failed") | null;
+                source?: ("test" | "inbound" | "outbound") | null;
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CallListOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    summary_v1_calls_summary_get: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CallSummaryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_call_v1_calls__call_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                call_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CallDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_call_v1_calls__call_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                call_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

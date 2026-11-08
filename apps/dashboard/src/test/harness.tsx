@@ -11,6 +11,9 @@ export const ALL_PERMISSIONS = [
   'agents:test',
   'members:manage',
   'provider_keys:manage',
+  'calls:read',
+  'calls:view_transcript',
+  'calls:delete',
 ]
 
 export interface Call {

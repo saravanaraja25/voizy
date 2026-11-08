@@ -1,4 +1,4 @@
-import { AudioLines, Bot, ChevronsUpDown, LogOut, Settings, UserCog, Users } from 'lucide-react'
+import { AudioLines, Bot, ChevronsUpDown, LogOut, PhoneCall, Settings, UserCog, Users } from 'lucide-react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
@@ -36,6 +36,13 @@ const NAV = [
     icon: Bot,
     match: (p: string) => p === '/' || p.startsWith('/agents'),
     permission: null,
+  },
+  {
+    to: '/calls',
+    label: 'Calls',
+    icon: PhoneCall,
+    match: (p: string) => p.startsWith('/calls'),
+    permission: 'calls:read',
   },
   {
     to: '/team',

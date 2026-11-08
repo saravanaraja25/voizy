@@ -1,6 +1,7 @@
 import { Mic, MicOff, Phone, PhoneOff, Loader2, Info } from 'lucide-react'
 import { Room, RoomEvent, Track } from 'livekit-client'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { describeError } from '@/api/client'
 import { useAuth } from '@/auth/AuthContext'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -86,7 +87,7 @@ export function TestConsole({
   version: number
   disabledReason?: string
 }) {
-  const { client } = useAuth()
+  const { client, can } = useAuth()
   const [phase, setPhase] = useState<Phase>('idle')
   const [error, setError] = useState<string | null>(null)
   const [lines, setLines] = useState<Line[]>([])
@@ -214,6 +215,12 @@ export function TestConsole({
           <Alert variant="destructive" role="alert">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
+        )}
+
+        {phase === 'ended' && can('calls:read') && (
+          <p className="text-muted-foreground text-sm">
+            Call ended. <Link className="underline underline-offset-4" to={`/calls?agent_id=${agentId}`}>View it in Calls</Link>
+          </p>
         )}
 
         <div className="flex gap-2">

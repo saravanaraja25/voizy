@@ -1,4 +1,7 @@
 import type {
+  CallDetailOut,
+  CallListOut,
+  CallSummaryOut,
   AgentConfig,
   AgentOut,
   CatalogOut,
@@ -131,6 +134,16 @@ export function createClient(options: ClientOptions = {}) {
         display_name,
         password,
       }),
+    // call history
+    calls: (params: { agent_id?: string; status?: string; source?: string; cursor?: string }) => {
+      const q = new URLSearchParams()
+      for (const [k, v] of Object.entries(params)) if (v) q.set(k, v)
+      const qs = q.toString()
+      return request<CallListOut>('GET', `/v1/calls${qs ? `?${qs}` : ''}`)
+    },
+    callSummary: (days = 7) => request<CallSummaryOut>('GET', `/v1/calls/summary?days=${days}`),
+    call: (id: string) => request<CallDetailOut>('GET', `/v1/calls/${encodeURIComponent(id)}`),
+    deleteCall: (id: string) => request<void>('DELETE', `/v1/calls/${encodeURIComponent(id)}`),
     // integrations and tool credentials (write-only: no response ever carries a secret value)
     integrations: () => request<IntegrationOut[]>('GET', '/v1/integrations'),
     saveIntegration: (id: string, values: Record<string, string>) =>

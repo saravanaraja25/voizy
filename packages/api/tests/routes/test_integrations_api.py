@@ -283,3 +283,29 @@ async def test_test_sessions_use_the_workspaces_stored_livekit_connection(
             options={"verify_aud": False},
         )
         assert claims["iss"] == LK["livekit_api_key"]  # signed with the workspace's own key
+
+
+async def test_own_key_choice_needs_a_stored_key_and_a_supported_provider(
+    client: httpx.AsyncClient, workspace_a: BootstrapResult
+) -> None:
+    h = bearer(workspace_a.token)
+    body = agent_body("Direct")
+    cfg = body["config"]
+    assert isinstance(cfg, dict)
+    cfg["llm"] = {"provider": "openai", "model": "gpt-4o-mini", "connection": "own"}
+
+    r = await client.post("/v1/agents", headers=h, json=body)
+    assert r.status_code == 422 and "OpenAI" in r.json()["detail"]
+
+    ok = await client.put(
+        "/v1/integrations/openai", headers=h, json={"values": {"openai_api_key": "sk-" + "x" * 30}}
+    )
+    assert ok.status_code == 200
+    created = await client.post("/v1/agents", headers=h, json=body)
+    assert created.status_code == 201
+
+    cfg["llm"] = {"provider": "assemblyai", "model": "x", "connection": "own"}
+    r = await client.post(
+        f"/v1/agents/{created.json()['id']}/versions", headers=h, json={"config": cfg}
+    )
+    assert r.status_code == 422 and "can't be used with your own key" in r.json()["detail"]

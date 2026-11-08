@@ -7,6 +7,7 @@ import uuid
 from dataclasses import dataclass
 
 from psycopg_pool import AsyncConnectionPool
+from voizy_core.domain.direct import ALL_DIRECT_KEY_NAMES
 from voizy_core.security.secretbox import SecretBox, SecretError
 from voizy_core.services import secrets_store as store
 from voizy_core.services.secrets_store import ResolvedSecret
@@ -59,6 +60,14 @@ async def load_livekit(
     return None
 
 
+async def load_direct_keys(
+    pool: AsyncConnectionPool, box: SecretBox, workspace_id: uuid.UUID
+) -> dict[str, str]:
+    """The workspace's own provider keys, for components set to connect directly."""
+    async with pool.connection() as conn:
+        return await store.get_integration_values(conn, box, workspace_id, ALL_DIRECT_KEY_NAMES)
+
+
 async def primary_workspace_livekit(
     pool: AsyncConnectionPool, box: SecretBox
 ) -> tuple[uuid.UUID, LiveKitCredentials] | None:
@@ -77,6 +86,7 @@ async def primary_workspace_livekit(
 __all__ = [
     "DbSecretResolver",
     "LiveKitCredentials",
+    "load_direct_keys",
     "load_livekit",
     "primary_workspace_livekit",
     "secret_box_from_env",

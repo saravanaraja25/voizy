@@ -7,12 +7,14 @@ or call setup with a clear message instead of mid-call.
 from __future__ import annotations
 
 import typing
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Protocol
 
 from livekit.agents import NOT_GIVEN, inference
 from livekit.agents.types import NotGivenOr
 from voizy_core.domain.agent_config import AgentConfig, ProviderChoice, VoiceChoice
+from voizy_core.domain.direct import DIRECT_KEYS, components
 
 
 class ConfigError(Exception):
@@ -95,6 +97,71 @@ class InferenceProviders:
             language=language,
             api_key=self._key,
             api_secret=self._secret,
+        )
+
+
+class WorkspaceProviders:
+    """Chooses, per component, LiveKit Inference or the provider's own plugin with the stored key.
+
+    Keys are the workspace's integration secrets (see direct.DIRECT_KEYS). A component set to use
+    its own key never silently falls back to LiveKit: a missing key fails the call setup loudly.
+    """
+
+    def __init__(
+        self, inference: InferenceProviders, keys: Mapping[str, str] | None = None
+    ) -> None:
+        self._inference = inference
+        self._keys = dict(keys or {})
+
+    def _key(self, kind: str, choice: ProviderChoice) -> str:
+        name = DIRECT_KEYS.get((kind, choice.provider))
+        if name is None:
+            raise ConfigError(f"{kind} provider {choice.provider!r} has no direct connection")
+        key = self._keys.get(name)
+        if not key:
+            raise ConfigError(f"{name} is not configured for this workspace")
+        return key
+
+    def validate(self, cfg: AgentConfig) -> None:
+        for kind, choice in components(cfg):
+            if choice.connection == "own":
+                self._key(kind, choice)
+        for kind, choice in components(cfg):
+            if choice.connection != "own":
+                catalog = {"stt": STT_MODELS, "llm": LLM_MODELS, "tts": TTS_MODELS}[kind]
+                _check(kind.upper(), model_id(choice), catalog)
+
+    def stt(self, choice: ProviderChoice, language: str) -> typing.Any:
+        if choice.connection != "own":
+            return self._inference.stt(choice, language)
+        from livekit.plugins import deepgram  # noqa: PLC0415 - heavy import, only when used
+
+        return deepgram.STT(model=choice.model, language=language, api_key=self._key("stt", choice))
+
+    def llm(self, choice: ProviderChoice) -> typing.Any:
+        if choice.connection != "own":
+            return self._inference.llm(choice)
+        key = self._key("llm", choice)
+        if choice.provider == "openai":
+            from livekit.plugins import openai  # noqa: PLC0415
+
+            return openai.LLM(model=choice.model, api_key=key)
+        from livekit.plugins import google  # noqa: PLC0415
+
+        return google.LLM(model=choice.model, api_key=key)
+
+    def tts(self, choice: VoiceChoice, language: str) -> typing.Any:
+        if choice.connection != "own":
+            return self._inference.tts(choice, language)
+        from livekit.plugins import cartesia  # noqa: PLC0415
+
+        extra: dict[str, typing.Any] = {"speed": choice.speed} if choice.speed != 1.0 else {}
+        return cartesia.TTS(
+            model=choice.model,
+            voice=choice.voice_id,
+            language=language,
+            api_key=self._key("tts", choice),
+            **extra,
         )
 
 

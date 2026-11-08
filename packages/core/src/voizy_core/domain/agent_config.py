@@ -27,6 +27,9 @@ class _Strict(BaseModel):
 class ProviderChoice(_Strict):
     provider: str = Field(min_length=1, max_length=64)
     model: str = Field(min_length=1, max_length=128)
+    # "livekit": through LiveKit Inference (one key for everything). "own": directly with the
+    # provider, using the key stored in Settings. Only some providers support "own"; see direct.py.
+    connection: Literal["livekit", "own"] = "livekit"
     params: dict[str, str | int | float | bool] = Field(default_factory=dict)
 
 

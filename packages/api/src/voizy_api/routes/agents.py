@@ -6,7 +6,9 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from voizy_core.db.pool import workspace_tx
 from voizy_core.domain.agent_config import AgentConfig
+from voizy_core.domain.direct import components, direct_problems
 from voizy_core.domain.permissions import Permission
+from voizy_core.services import secrets_store
 from voizy_core.services.auth import Principal
 
 from voizy_api.schemas.agents import AgentCreate, AgentOut, VersionCreate, VersionOut
@@ -30,12 +32,26 @@ def _agent_out(row: tuple[Any, ...]) -> AgentOut:
     )
 
 
+async def _check_connections(request: Request, p: Principal, cfg: AgentConfig) -> None:
+    """Reject 'use my own key' choices that cannot work, with a reason the editor can show."""
+    if not any(c.connection == "own" for _, c in components(cfg)):
+        return
+    async with request.app.state.pool.connection() as conn:
+        configured = {
+            i.name for i in await secrets_store.list_secrets(conn, p.workspace_id, "integration")
+        }
+    problems = direct_problems(cfg, configured)
+    if problems:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, " ".join(problems))
+
+
 @router.post("", response_model=AgentOut, status_code=status.HTTP_201_CREATED)
 async def create_agent(
     body: AgentCreate,
     request: Request,
     p: Annotated[Principal, Depends(require(Permission.AGENTS_CREATE))],
 ) -> AgentOut:
+    await _check_connections(request, p, body.config)
     async with workspace_tx(request.app.state.pool, p.workspace_id) as conn:
         cur = await conn.execute(
             "INSERT INTO agents (workspace_id, name, created_by) VALUES (%s, %s, NULL) "
@@ -85,6 +101,7 @@ async def create_version(
     request: Request,
     p: Annotated[Principal, Depends(require(Permission.AGENTS_EDIT))],
 ) -> VersionOut:
+    await _check_connections(request, p, body.config)
     async with workspace_tx(request.app.state.pool, p.workspace_id) as conn:
         # Lock the agent row so concurrent creators get distinct version numbers.
         cur = await conn.execute(

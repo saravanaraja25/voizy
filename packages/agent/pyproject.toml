@@ -6,6 +6,10 @@ requires-python = ">=3.12"
 dependencies = [
   "voizy-core",
   "livekit-agents[silero,turn-detector]>=1.2",
+  "livekit-plugins-openai==1.8.11",
+  "livekit-plugins-deepgram==1.8.11",
+  "livekit-plugins-cartesia==1.8.11",
+  "livekit-plugins-google==1.8.11",
 ]
 
 [tool.uv.sources]

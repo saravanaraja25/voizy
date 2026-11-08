@@ -36,13 +36,14 @@ from voizy_agent.config_source import (
 from voizy_agent.credentials import (
     DbSecretResolver,
     LiveKitCredentials,
+    load_direct_keys,
     load_livekit,
     secret_box_from_env,
 )
 from voizy_agent.http_tool import HttpToolExecutor
 from voizy_agent.instructions import build_instructions
 from voizy_agent.latency import LatencyRecorder
-from voizy_agent.providers import InferenceProviders, build_pipeline
+from voizy_agent.providers import InferenceProviders, WorkspaceProviders, build_pipeline
 from voizy_agent.session_options import get_vad, turn_handling
 from voizy_agent.tools import build_http_tools, tool_names
 
@@ -117,9 +118,13 @@ async def entrypoint(ctx: JobContext) -> None:
         livekit = await load_livekit(pool, box, workspace_id)
     tools = build_http_tools(cfg, HttpToolExecutor(_tool_policy()), resolver)
     agent_tools: list[llm.Tool | llm.Toolset] = [*tools]
-    providers = (
+    inference_providers = (
         InferenceProviders(livekit.api_key, livekit.api_secret) if livekit else InferenceProviders()
     )
+    own_keys: dict[str, str] = {}
+    if workspace_id is not None and box is not None:
+        own_keys = await load_direct_keys(await _pool_for(), box, workspace_id)
+    providers = WorkspaceProviders(inference_providers, own_keys)
     parts = build_pipeline(cfg, providers)
     recorder = LatencyRecorder()
     history: CallRecorder | None = None

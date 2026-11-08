@@ -7,7 +7,6 @@ import json
 import logging
 import os
 import time
-import uuid
 
 from livekit import agents, rtc
 from livekit.agents import (
@@ -25,12 +24,13 @@ from livekit.plugins import silero
 from psycopg_pool import AsyncConnectionPool
 from voizy_core.db.pool import open_pool
 from voizy_core.domain.agent_config import AgentConfig, TurnConfig
-from voizy_core.domain.dispatch import AGENT_WORKER_NAME, parse_dispatch
+from voizy_core.domain.dispatch import AGENT_WORKER_NAME, DispatchTarget, parse_dispatch
 from voizy_core.security.ssrf import STRICT, SsrfPolicy
 
+from voizy_agent.call_recorder import CallRecorder
 from voizy_agent.config_source import (
     ConfigNotFoundError,
-    load_config,
+    load_config_with_version,
     load_dev_config,
 )
 from voizy_agent.credentials import (
@@ -92,20 +92,22 @@ async def _pool_for() -> AsyncConnectionPool:
     return _pool
 
 
-async def _config_for(ctx: JobContext) -> tuple[AgentConfig, uuid.UUID | None]:
-    """The agent's config, and the workspace it belongs to (None for a local dev config file)."""
+async def _config_for(ctx: JobContext) -> tuple[AgentConfig, DispatchTarget | None, int]:
+    """The agent's config, which agent it is, and the version used (no target for a dev file)."""
     target = parse_dispatch(ctx.job.metadata)
     if target is not None:
-        return await load_config(await _pool_for(), target), target.workspace_id
+        cfg, version = await load_config_with_version(await _pool_for(), target)
+        return cfg, target, version
     dev = os.environ.get("VOIZY_DEV_AGENT_CONFIG")  # local development / playground only
     if dev:
-        return load_dev_config(dev), None
+        return load_dev_config(dev), None, 0
     raise ConfigNotFoundError("no dispatch metadata and VOIZY_DEV_AGENT_CONFIG is not set")
 
 
 @server.rtc_session(agent_name=os.environ.get("VOIZY_AGENT_NAME", AGENT_WORKER_NAME))
 async def entrypoint(ctx: JobContext) -> None:
-    cfg, workspace_id = await _config_for(ctx)
+    cfg, target, version = await _config_for(ctx)
+    workspace_id = target.workspace_id if target else None
     resolver: DbSecretResolver | None = None
     livekit: LiveKitCredentials | None = None
     box = secret_box_from_env()
@@ -120,6 +122,17 @@ async def entrypoint(ctx: JobContext) -> None:
     )
     parts = build_pipeline(cfg, providers)
     recorder = LatencyRecorder()
+    history: CallRecorder | None = None
+    if target is not None:
+        history = CallRecorder(
+            await _pool_for(),
+            target.workspace_id,
+            agent_id=target.agent_id,
+            version=version,
+            room=ctx.room.name,
+            policy=cfg.policy,
+        )
+        history.start()
 
     # Loading a model is blocking work; keep it off the event loop that carries call audio.
     vad = await asyncio.to_thread(
@@ -143,10 +156,18 @@ async def entrypoint(ctx: JobContext) -> None:
                 log.info("transcript %s: %s", item.role, item.text_content)
             before = len(recorder.turns())
             recorder.ingest_message(item.role, item.metrics)
+            ms: dict[str, int] | None = None
             if len(recorder.turns()) > before:
                 t = recorder.turns()[-1]
                 ms = {k.removesuffix("_s"): round(v * 1000) for k, v in vars(t).items() if v}
                 log.info("turn latency: %s", ms)
+            if history is not None:
+                history.turn(
+                    "user" if item.role == "user" else "agent",
+                    item.text_content or "",
+                    latency=ms,
+                )
+            if ms is not None:
                 task = asyncio.create_task(_publish_latency(ctx.room, ms))
                 _background.add(task)
                 task.add_done_callback(_background.discard)
@@ -167,10 +188,31 @@ async def entrypoint(ctx: JobContext) -> None:
         def _on_tools(ev: FunctionToolsExecutedEvent) -> None:
             log.info("trace tools executed @%d", time.monotonic() * 1000)
 
+    if history is not None:
+        recording = history
+
+        @session.on("function_tools_executed")
+        def _record_tools(ev: FunctionToolsExecutedEvent) -> None:
+            for (
+                call,
+                out,
+            ) in ev.zipped():  # names and outcome only: arguments and results are not kept
+                recording.turn(
+                    "tool",
+                    tool_name=call.name,
+                    tool_ok=not out.is_error,
+                    tool_ms=max(0, round((out.created_at - call.created_at) * 1000)),
+                )
+
     async def _log_summary() -> None:
         log.info("latency summary (ms): %s", recorder.summary())
 
+    async def _close_history() -> None:
+        if history is not None:
+            await history.close(reason="ended")
+
     ctx.add_shutdown_callback(_log_summary)
+    ctx.add_shutdown_callback(_close_history)
 
     await session.start(
         agent=Agent(instructions=build_instructions(cfg, tool_names(tools)), tools=agent_tools),

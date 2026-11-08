@@ -21,6 +21,7 @@ from voizy_core.security.redact import redact
 
 Source = Literal["test", "inbound", "outbound"]
 Status = Literal["in_progress", "completed", "failed"]
+FinalStatus = Literal["completed", "failed"]
 METADATA_RETENTION_DAYS = 30  # call metadata is kept this long when transcripts are not
 MAX_TEXT = 8000
 
@@ -144,7 +145,7 @@ async def finish_call(
     workspace_id: uuid.UUID,
     call_id: uuid.UUID,
     *,
-    status: Literal["completed", "failed"] = "completed",
+    status: FinalStatus = "completed",
     end_reason: str = "",
 ) -> None:
     """Close an in-progress call and compute its totals. Safe to call twice."""

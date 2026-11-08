@@ -28,10 +28,17 @@ async def load_published_config(
 
 async def load_config(pool: AsyncConnectionPool, target: DispatchTarget) -> AgentConfig:
     """The published version, or the exact version named in a (server-signed) test dispatch."""
+    return (await load_config_with_version(pool, target))[0]
+
+
+async def load_config_with_version(
+    pool: AsyncConnectionPool, target: DispatchTarget
+) -> tuple[AgentConfig, int]:
+    """Like `load_config`, also returning the version number that was resolved."""
     async with workspace_tx(pool, target.workspace_id) as conn:
         if target.version is None:
             cur = await conn.execute(
-                "SELECT v.config FROM agents a "
+                "SELECT v.config, v.version FROM agents a "
                 "JOIN agent_versions v ON v.workspace_id = a.workspace_id "
                 "AND v.id = a.published_version_id "
                 "WHERE a.id = %s AND a.archived_at IS NULL",
@@ -39,7 +46,7 @@ async def load_config(pool: AsyncConnectionPool, target: DispatchTarget) -> Agen
             )
         else:
             cur = await conn.execute(
-                "SELECT v.config FROM agents a "
+                "SELECT v.config, v.version FROM agents a "
                 "JOIN agent_versions v ON v.workspace_id = a.workspace_id AND v.agent_id = a.id "
                 "WHERE a.id = %s AND v.version = %s AND a.archived_at IS NULL",
                 (target.agent_id, target.version),
@@ -47,7 +54,7 @@ async def load_config(pool: AsyncConnectionPool, target: DispatchTarget) -> Agen
         row = await cur.fetchone()
     if row is None:
         raise ConfigNotFoundError("agent or version not found, archived, or not published")
-    return AgentConfig.model_validate(row[0])
+    return AgentConfig.model_validate(row[0]), int(row[1])
 
 
 def load_dev_config(path: str | Path) -> AgentConfig:

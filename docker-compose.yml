@@ -1,4 +1,6 @@
 # Local/self-host stack: Postgres, one-shot migrations, API. Copy .env.example to .env first.
+name: voizy-oss  # distinct project name so volumes never collide with other stacks
+
 services:
   postgres:
     image: postgres:16

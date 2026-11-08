@@ -188,8 +188,10 @@ class VariableDef(_Strict):
 class PolicyConfig(_Strict):
     record_calls: bool = False
     recording_disclosure: str | None = Field(default=None, max_length=500)
+    # How long call records are kept. 0 keeps no transcript at all (metadata only).
     retention_days: int = Field(default=30, ge=0, le=3650)
     redact_pii: bool = True
+    save_transcripts: bool = True
 
     @model_validator(mode="after")
     def _disclosure_when_recording(self) -> PolicyConfig:

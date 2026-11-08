@@ -7,10 +7,19 @@ import type { Plugin } from 'vite'
 
 // Strict CSP for production builds only. The dev server injects styles inline for hot reload, which
 // a strict style-src would block. frame-ancestors is ignored in a <meta>, so serve it as a header.
+// Libraries inject three small stylesheets at run time (toast and popup styling). Rather than allow
+// 'unsafe-inline', allow exactly those by hash. If a dependency upgrade changes one, the browser
+// logs the new hash in a CSP violation message: replace the matching entry.
+const INJECTED_STYLE_HASHES = [
+  'sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=',
+  'sha256-StEaX+se6YS7pqjzrzMIA0KaX9zF/8zAhvQXZAe5epY=',
+  'sha256-kLmvWqfziFavKtqHqRsb90f006UAK2Dmd0It5Iz2KFA=',
+]
+
 const CSP = [
   "default-src 'self'",
   "script-src 'self'",
-  "style-src 'self'",
+  `style-src 'self' ${INJECTED_STYLE_HASHES.map((h) => `'${h}'`).join(' ')}`,
   "img-src 'self' data:",
   "media-src 'self' blob:",
   'connect-src \'self\' https: wss:',

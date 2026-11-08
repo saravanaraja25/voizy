@@ -86,13 +86,23 @@ The dev agent (`dev/agent.example.json`) books appointments through the mock API
 call loopback in this mode (`VOIZY_DEV_ALLOW_LOCAL_TOOLS=1`); private and metadata ranges stay
 blocked. Set `VOIZY_LOG_TRANSCRIPTS=1` to print what is said (off by default: personal data).
 
-## Run (Docker)
+## Run everything with Docker
 
 ```sh
-cp .env.example .env   # set the two passwords
+cp .env.example .env     # set the two DB passwords and VOIZY_SECRET_KEYS (see the comments inside)
 docker compose up --build
-docker compose run --rm migrate voizy-admin bootstrap --name "My workspace"  # one-time API key
-curl -H "Authorization: Bearer <key>" localhost:8000/v1/agents
+docker compose logs api | grep "setup token"      # the one-time first-run token
 ```
+
+Open <http://localhost:8080>, finish first-run setup, then connect LiveKit under **Settings**. The
+voice worker container waits for that connection and picks it up within seconds: no restart, and no
+`LIVEKIT_*` variables needed (set them in `.env` instead if you prefer; they win).
+
+- Only the dashboard's port is published. Its nginx serves the app and proxies `/v1` to the API, so
+  the browser sees a single origin (first-party cookies, no CORS).
+- `VOIZY_COOKIE_SECURE` defaults to `0` so plain `http://localhost` works. **Put TLS in front for
+  anything real, set it to `1`, and list your public origin(s) in `VOIZY_PUBLIC_ORIGINS`.**
+- Database upgrades are applied by the `migrate` service on every start.
+- Images: API ~350 MB, voice worker ~1.1 GB (the LiveKit agent stack), dashboard ~80 MB.
 
 License: Apache-2.0.

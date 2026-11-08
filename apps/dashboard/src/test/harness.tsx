@@ -3,20 +3,21 @@ import { vi } from 'vitest'
 import { App } from '@/App'
 import { newAgentConfig } from '@/lib/config'
 
-export const API = 'http://localhost:8010'
 export const ALL_PERMISSIONS = [
   'agents:read',
   'agents:create',
   'agents:edit',
   'agents:publish',
   'agents:test',
+  'members:manage',
 ]
 
 export interface Call {
   method: string
   path: string
   body: unknown
-  auth: string | null
+  csrf: string | null
+  credentials: RequestCredentials | undefined
 }
 
 type Reply = { status?: number; body?: unknown } | ((call: Call) => { status?: number; body?: unknown })
@@ -27,13 +28,14 @@ export function mockApi(routes: Record<string, Reply>) {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string, init?: RequestInit) => {
-      const path = new URL(url).pathname
+      const path = new URL(url, 'http://localhost').pathname
       const headers = (init?.headers ?? {}) as Record<string, string>
       const call: Call = {
         method: init?.method ?? 'GET',
         path,
         body: init?.body ? JSON.parse(String(init.body)) : undefined,
-        auth: headers.Authorization ?? null,
+        csrf: headers['X-CSRF-Token'] ?? null,
+        credentials: init?.credentials,
       }
       calls.push(call)
       const reply = routes[`${call.method} ${path}`]
@@ -45,11 +47,22 @@ export function mockApi(routes: Record<string, Reply>) {
   return calls
 }
 
+export const CSRF = 'csrf-token-1'
+
 export const me = (permissions = ALL_PERMISSIONS) => ({
   workspace_id: 'w1',
   workspace_name: 'Acme',
-  api_key_id: 'k1',
+  user_id: 'u-me',
+  email: 'olivia@example.com',
+  display_name: 'Olivia Owner',
+  csrf_token: CSRF,
   permissions,
+})
+
+/** A server with nobody signed in: /v1/me says 401 and setup is already done. */
+export const signedOut = (needsSetup = false) => ({
+  'GET /v1/me': { status: 401, body: { detail: 'invalid or missing credentials' } },
+  'GET /v1/setup/status': { body: { needs_setup: needsSetup } },
 })
 
 export const agent = (over: Record<string, unknown> = {}) => ({
@@ -75,10 +88,6 @@ export const versionOut = (version: number, config = newAgentConfig('Front desk'
   created_at: '2026-11-01T10:00:00Z',
   config,
 })
-
-export function signInStored() {
-  sessionStorage.setItem('voizy.session', JSON.stringify({ baseUrl: API, key: 'vz_test_key' }))
-}
 
 export function renderAt(path: string) {
   window.history.pushState({}, '', path)

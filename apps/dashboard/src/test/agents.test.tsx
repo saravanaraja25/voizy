@@ -1,11 +1,10 @@
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
-import { agent, me, mockApi, renderAt, signInStored, versionOut } from './harness'
+import { agent, me, mockApi, renderAt, versionOut } from './harness'
 
 describe('agents list', () => {
   it('shows an empty state with a create action', async () => {
-    signInStored()
     mockApi({ 'GET /v1/me': { body: me() }, 'GET /v1/agents': { body: [] } })
     renderAt('/')
     expect(await screen.findByText(/no agents yet/i)).toBeInTheDocument()
@@ -13,7 +12,6 @@ describe('agents list', () => {
   })
 
   it('lists agents with live and draft status', async () => {
-    signInStored()
     mockApi({
       'GET /v1/me': { body: me() },
       'GET /v1/agents': {
@@ -28,7 +26,6 @@ describe('agents list', () => {
   })
 
   it('hides creation when the key lacks the permission', async () => {
-    signInStored()
     mockApi({ 'GET /v1/me': { body: me(['agents:read']) }, 'GET /v1/agents': { body: [] } })
     renderAt('/')
     await screen.findByText(/no agents yet/i)
@@ -36,7 +33,6 @@ describe('agents list', () => {
   })
 
   it('reports load failures and lets the user retry', async () => {
-    signInStored()
     let attempt = 0
     mockApi({
       'GET /v1/me': { body: me() },
@@ -49,7 +45,6 @@ describe('agents list', () => {
   })
 
   it('creates an agent from the template and opens it', async () => {
-    signInStored()
     const calls = mockApi({
       'GET /v1/me': { body: me() },
       'GET /v1/agents': { body: [] },
@@ -69,6 +64,8 @@ describe('agents list', () => {
 
     const post = calls.find((c) => c.method === 'POST' && c.path === '/v1/agents')!
     const body = post.body as { name: string; config: { name: string; mode: string; system_prompt: string } }
+    expect(post.csrf).toBe('csrf-token-1') // every write carries the session's CSRF token
+    expect(post.credentials).toBe('include')
     expect(body.name).toBe('Reception')
     expect(body.config).toMatchObject({ name: 'Reception', mode: 'pipeline' })
     expect(body.config.system_prompt).toContain('{{company}}')

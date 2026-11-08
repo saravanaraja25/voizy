@@ -1,47 +1,76 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError, createClient, describeError, fieldErrors } from './client'
-import { normalizeBaseUrl } from '@/auth/session'
 
 afterEach(() => vi.restoreAllMocks())
 
 function mockFetch(status: number, body: unknown) {
-  const fn = vi.fn().mockResolvedValue(
-    new Response(body === undefined ? null : JSON.stringify(body), { status }),
-  )
+  // A fresh Response per call: a body can only be read once.
+  const fn = vi
+    .fn()
+    .mockImplementation(async () => new Response(body === undefined ? null : JSON.stringify(body), { status }))
   vi.stubGlobal('fetch', fn)
   return fn
 }
 
 describe('client', () => {
-  it('sends the bearer key and JSON body, and trims the base url', async () => {
-    const fn = mockFetch(200, { ok: true })
-    await createClient('http://localhost:8010/', 'vz_key').createVersion('a1', { name: 'x' } as never)
-    const [url, init] = fn.mock.calls[0]!
-    expect(url).toBe('http://localhost:8010/v1/agents/a1/versions')
-    expect(init.headers.Authorization).toBe('Bearer vz_key')
-    expect(init.headers['Content-Type']).toBe('application/json')
-    expect(JSON.parse(init.body)).toEqual({ config: { name: 'x' } })
-  })
-
-  it('does not send a content type on bodyless requests', async () => {
+  it('uses the cookie session: credentials included, relative URL, no bearer header', async () => {
     const fn = mockFetch(200, [])
-    await createClient('http://x', 'k').listAgents()
-    expect(fn.mock.calls[0]![1].headers['Content-Type']).toBeUndefined()
+    await createClient().listAgents()
+    const [url, init] = fn.mock.calls[0]!
+    expect(url).toBe('/v1/agents')
+    expect(init.credentials).toBe('include')
+    expect(init.headers.Authorization).toBeUndefined()
   })
 
-  it('signs out on 401 and throws ApiError', async () => {
+  it('sends the CSRF token on writes only', async () => {
+    const fn = mockFetch(200, {})
+    const api = createClient({ getCsrf: () => 'csrf-1' })
+    await api.listAgents()
+    await api.createVersion('a1', { name: 'x' } as never)
+    await api.removeMember('u1')
+    expect(fn.mock.calls[0]![1].headers['X-CSRF-Token']).toBeUndefined()
+    expect(fn.mock.calls[1]![1].headers['X-CSRF-Token']).toBe('csrf-1')
+    expect(fn.mock.calls[2]![1].headers['X-CSRF-Token']).toBe('csrf-1')
+    expect(JSON.parse(fn.mock.calls[1]![1].body)).toEqual({ config: { name: 'x' } })
+  })
+
+  it('omits the CSRF header when there is no session yet', async () => {
+    const fn = mockFetch(200, {})
+    await createClient({ getCsrf: () => null }).login('a@example.com', 'pw')
+    expect(fn.mock.calls[0]![1].headers['X-CSRF-Token']).toBeUndefined()
+  })
+
+  it('supports an API key for scripts via extra headers, and a base url', async () => {
+    const fn = mockFetch(200, {})
+    await createClient({ baseUrl: 'http://api.test/', headers: { Authorization: 'Bearer vz_k' } }).me()
+    const [url, init] = fn.mock.calls[0]!
+    expect(url).toBe('http://api.test/v1/me')
+    expect(init.headers.Authorization).toBe('Bearer vz_k')
+  })
+
+  it('reports a lost session on 401, except for the calls that are meant to 401', async () => {
     mockFetch(401, { detail: 'invalid or missing credentials' })
     const onUnauthorized = vi.fn()
-    await expect(createClient('http://x', 'k', onUnauthorized).me()).rejects.toBeInstanceOf(ApiError)
+    const api = createClient({ onUnauthorized })
+    await expect(api.listAgents()).rejects.toBeInstanceOf(ApiError)
+    expect(onUnauthorized).toHaveBeenCalledOnce()
+    await expect(api.me()).rejects.toBeInstanceOf(ApiError) // "am I signed in?" is allowed to say no
+    await expect(api.login('a@example.com', 'wrong')).rejects.toBeInstanceOf(ApiError)
     expect(onUnauthorized).toHaveBeenCalledOnce()
   })
 
   it('surfaces the server message for 4xx errors', async () => {
     mockFetch(409, { detail: 'agent is archived' })
-    await expect(createClient('http://x', 'k').publish('a', 1)).rejects.toMatchObject({
+    await expect(createClient().publish('a', 1)).rejects.toMatchObject({
       status: 409,
       message: 'agent is archived',
     })
+  })
+
+  it('encodes invite tokens in the path', async () => {
+    const fn = mockFetch(200, {})
+    await createClient().previewInvite('a/b?c')
+    expect(fn.mock.calls[0]![0]).toBe('/v1/invites/a%2Fb%3Fc')
   })
 })
 
@@ -69,19 +98,9 @@ describe('validation errors', () => {
   it('describes errors for humans', () => {
     expect(describeError(err)).toContain('turn.vad_min_silence_ms: Input should be >= 100')
     expect(describeError(new ApiError(403, 'missing permission'))).toMatch(/permission/)
+    expect(describeError(new ApiError(403, 'Current password is incorrect.'))).toBe(
+      'Current password is incorrect.',
+    )
     expect(describeError('weird')).toBe('Something went wrong.')
   })
-})
-
-describe('normalizeBaseUrl', () => {
-  it.each([
-    ['http://localhost:8010/', 'http://localhost:8010'],
-    ['https://api.example.com/path', 'https://api.example.com'],
-    ['http://127.0.0.1:8000', 'http://127.0.0.1:8000'],
-  ])('accepts %s', (input, expected) => expect(normalizeBaseUrl(input)).toBe(expected))
-
-  it.each(['http://api.example.com', 'ftp://x', 'javascript:alert(1)', 'not a url', ''])(
-    'rejects %s',
-    (input) => expect(normalizeBaseUrl(input)).toBeNull(),
-  )
 })

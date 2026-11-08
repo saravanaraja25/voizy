@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
-import { agent, catalog, me, mockApi, renderAt, signInStored, versionOut } from './harness'
+import { agent, catalog, me, mockApi, renderAt, versionOut } from './harness'
 import type { Call } from './harness'
 
 const summary = (version: number, is_published = false) => ({
@@ -23,7 +23,6 @@ function routes(extra: Parameters<typeof mockApi>[0] = {}, agentOver = {}, versi
 }
 
 async function openEditor() {
-  signInStored()
   renderAt('/agents/a1')
   return screen.findByLabelText('Instructions')
 }

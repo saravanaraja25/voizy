@@ -11,7 +11,7 @@ const API = process.env.VOIZY_E2E_API
 const KEY = process.env.VOIZY_E2E_KEY
 
 describe.skipIf(!API || !KEY)('against a live API', () => {
-  const api = createClient(API ?? '', KEY ?? '')
+  const api = createClient({ baseUrl: API ?? '', headers: { Authorization: `Bearer ${KEY ?? ''}` } })
 
   it('creates, edits, validates, publishes and starts a test session', async () => {
     const who = await api.me()

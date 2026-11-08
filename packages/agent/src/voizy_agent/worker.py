@@ -33,6 +33,7 @@ from voizy_agent.providers import InferenceProviders, build_pipeline
 from voizy_agent.session_options import turn_handling
 from voizy_agent.tools import build_http_tools, tool_names
 
+LOG_TRANSCRIPTS = os.environ.get("VOIZY_LOG_TRANSCRIPTS") == "1"
 log = logging.getLogger("livekit.agents.voizy")  # inherits LiveKit's log config
 
 
@@ -91,6 +92,8 @@ async def entrypoint(ctx: JobContext) -> None:
     def _on_item(ev: ConversationItemAddedEvent) -> None:
         item = ev.item
         if item.type == "message" and item.role in ("user", "assistant"):
+            if LOG_TRANSCRIPTS:  # off by default: transcripts are personal data
+                log.info("transcript %s: %s", item.role, item.text_content)
             before = len(recorder.turns())
             recorder.ingest_message(item.role, item.metrics)
             if len(recorder.turns()) > before:

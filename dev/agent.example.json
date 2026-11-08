@@ -1,9 +1,92 @@
 {
   "name": "Ava",
-  "system_prompt": "You are {{agent_name}}, the phone receptionist for Bright Smile Dental. Be warm, brief and natural: one or two short sentences per turn. You can answer general questions (hours: Monday to Friday, 9am to 5pm; the clinic offers cleanings, check-ups, whitening and fillings). You cannot see or change the appointment schedule. To arrange an appointment, collect the caller's name, phone number and preferred day and time, then say the team will call back to confirm.",
-  "languages": [{ "code": "en", "greeting": "Hi, thanks for calling Bright Smile Dental. How can I help you today?" }],
-  "stt": { "provider": "deepgram", "model": "nova-3" },
-  "llm": { "provider": "google", "model": "gemini-2.5-flash" },
-  "tts": { "provider": "cartesia", "model": "sonic-turbo", "voice_id": "f786b574-daa5-4673-aa0c-cbe3e8534c02" },
-  "turn": { "max_endpointing_delay_ms": 1000 }
+  "system_prompt": "You are {{agent_name}}, the phone receptionist for Bright Smile Dental. Be warm, brief and natural: one or two short sentences per turn. Today is {{current_time}} (UTC). General info: open Monday to Saturday; the clinic offers cleanings, check-ups, whitening and fillings. To book an appointment: ask for the day, call check_availability with the date as YYYY-MM-DD, offer the open times, then collect the caller's name and phone number and call book_appointment. Read back the confirmation id. If a time is unavailable, offer another from the list.",
+  "languages": [
+    {
+      "code": "en",
+      "greeting": "Hi, thanks for calling Bright Smile Dental. How can I help you today?"
+    }
+  ],
+  "stt": {
+    "provider": "deepgram",
+    "model": "nova-3"
+  },
+  "llm": {
+    "provider": "google",
+    "model": "gemini-2.5-flash"
+  },
+  "tts": {
+    "provider": "cartesia",
+    "model": "sonic-turbo",
+    "voice_id": "f786b574-daa5-4673-aa0c-cbe3e8534c02"
+  },
+  "turn": {
+    "max_endpointing_delay_ms": 1000
+  },
+  "tools": [
+    {
+      "kind": "http",
+      "name": "check_availability",
+      "description": "Get the open appointment times for one date.",
+      "url": "http://127.0.0.1:8099/availability",
+      "method": "GET",
+      "parameters_schema": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "description": "Date as YYYY-MM-DD"
+          }
+        },
+        "required": [
+          "date"
+        ]
+      },
+      "filler": {
+        "mode": "auto",
+        "delay_ms": 600
+      },
+      "timeout_s": 6
+    },
+    {
+      "kind": "http",
+      "name": "book_appointment",
+      "description": "Book an appointment slot for the caller.",
+      "url": "http://127.0.0.1:8099/appointments",
+      "method": "POST",
+      "parameters_schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string",
+            "description": "YYYY-MM-DD"
+          },
+          "time": {
+            "type": "string",
+            "description": "HH:MM 24-hour, from the offered list"
+          }
+        },
+        "required": [
+          "name",
+          "phone",
+          "date",
+          "time"
+        ]
+      },
+      "filler": {
+        "mode": "custom",
+        "phrases": [
+          "Okay, booking that now."
+        ],
+        "delay_ms": 500
+      },
+      "timeout_s": 8
+    }
+  ]
 }

@@ -29,6 +29,20 @@ VOIZY_TEST_ADMIN_URL=postgresql://postgres@127.0.0.1:55432/postgres uv run pytes
 uv run ruff check . && uv run mypy packages/core/src packages/api/src
 ```
 
+## Try the voice agent locally
+
+Needs `.env` with `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` (LiveKit Cloud; Inference
+supplies STT, LLM and TTS). Use headphones.
+
+```sh
+dev/run.sh          # talk in the terminal; starts a mock clinic API with tools (1.5 s delay)
+dev/run.sh dev      # or register a worker and join from a LiveKit room
+```
+
+The dev agent (`dev/agent.example.json`) books appointments through the mock API. Tools may only
+call loopback in this mode (`VOIZY_DEV_ALLOW_LOCAL_TOOLS=1`); private and metadata ranges stay
+blocked. Set `VOIZY_LOG_TRANSCRIPTS=1` to print what is said (off by default: personal data).
+
 ## Run (Docker)
 
 ```sh

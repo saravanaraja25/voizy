@@ -2,13 +2,17 @@ import type {
   AgentConfig,
   AgentOut,
   CatalogOut,
+  IntegrationOut,
   InviteCreated,
   InviteOut,
   InvitePreview,
   MeOut,
   MemberOut,
   SetupRequest,
+  TestResultOut,
   TestSessionOut,
+  ToolSecretOut,
+  ToolSecretPut,
   VersionOut,
   VersionSummary,
 } from './types'
@@ -127,6 +131,17 @@ export function createClient(options: ClientOptions = {}) {
         display_name,
         password,
       }),
+    // integrations and tool credentials (write-only: no response ever carries a secret value)
+    integrations: () => request<IntegrationOut[]>('GET', '/v1/integrations'),
+    saveIntegration: (id: string, values: Record<string, string>) =>
+      request<IntegrationOut>('PUT', `/v1/integrations/${id}`, { values }),
+    removeIntegration: (id: string) => request<void>('DELETE', `/v1/integrations/${id}`),
+    testIntegration: (id: string) => request<TestResultOut>('POST', `/v1/integrations/${id}/test`),
+    toolSecrets: () => request<ToolSecretOut[]>('GET', '/v1/secrets'),
+    putToolSecret: (name: string, body: ToolSecretPut) =>
+      request<ToolSecretOut>('PUT', `/v1/secrets/${encodeURIComponent(name)}`, body),
+    deleteToolSecret: (name: string) =>
+      request<void>('DELETE', `/v1/secrets/${encodeURIComponent(name)}`),
     // agents
     catalog: () => request<CatalogOut>('GET', '/v1/catalog'),
     listAgents: () => request<AgentOut[]>('GET', '/v1/agents'),

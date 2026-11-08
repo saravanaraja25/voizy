@@ -1,6 +1,8 @@
 import { Plus, Trash2, Wrench } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import type { AgentConfig, HttpTool } from '@/api/types'
+import type { AgentConfig, HttpAuth, HttpTool } from '@/api/types'
+import { useAuth } from '@/auth/AuthContext'
 import { Field } from '@/components/field'
 import type { TabProps } from '@/components/field'
 import { Badge } from '@/components/ui/badge'
@@ -22,6 +24,133 @@ const FILLER_MODES = [
 
 let nextId = 0
 const newId = () => `t${++nextId}`
+
+const AUTH_KINDS = [
+  { value: 'none', label: 'None' },
+  { value: 'bearer', label: 'Bearer token' },
+  { value: 'header', label: 'API key in a header' },
+  { value: 'basic', label: 'Basic (user:password)' },
+]
+
+/** How the tool authenticates. It names a stored credential; the value never appears here. */
+function AuthSection({
+  tool,
+  index,
+  errors,
+  disabled,
+  secretNames,
+  onChange,
+}: {
+  tool: HttpTool
+  index: number
+  errors: Record<string, string>
+  disabled?: boolean
+  secretNames: string[] | null
+  onChange: (t: HttpTool) => void
+}) {
+  const p = `tool-${index}`
+  const auth = tool.auth ?? null
+  const kind = auth?.kind ?? 'none'
+  const error = errors[`tools.${index}.auth`] ?? errors[`tools.${index}.auth.secret`]
+  const setAuth = (next: HttpAuth | null) => onChange({ ...tool, auth: next })
+  const secretItems = (secretNames ?? []).map((n) => ({ value: n, label: n }))
+  const known = !auth || secretItems.some((i) => i.value === auth.secret) || !auth.secret
+
+  return (
+    <div className="grid gap-4 border-t pt-5">
+      <Field
+        label="Authentication"
+        htmlFor={`${p}-auth`}
+        hint="Credentials are saved in Settings and sent only to the hosts you allow there."
+      >
+        <Select
+          value={kind}
+          items={AUTH_KINDS}
+          disabled={disabled}
+          onValueChange={(v) => {
+            if (!v || v === 'none') return setAuth(null)
+            setAuth({
+              kind: v as HttpAuth['kind'],
+              secret: auth?.secret ?? '',
+              header_name: v === 'header' ? (auth?.header_name ?? 'X-Api-Key') : null,
+            })
+          }}
+        >
+          <SelectTrigger id={`${p}-auth`} className="w-full md:w-72">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {AUTH_KINDS.map((k) => (
+              <SelectItem key={k.value} value={k.value}>
+                {k.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </Field>
+
+      {auth && (
+        <div className="grid gap-4 md:grid-cols-2">
+          <Field
+            label="Credential"
+            htmlFor={`${p}-secret`}
+            error={error}
+            hint={
+              secretNames && secretNames.length === 0
+                ? 'No credentials saved yet. Add one in Settings → Tool credentials.'
+                : undefined
+            }
+          >
+            {secretNames ? (
+              <Select
+                value={auth.secret}
+                items={secretItems}
+                disabled={disabled}
+                onValueChange={(v) => v && setAuth({ ...auth, secret: v })}
+              >
+                <SelectTrigger id={`${p}-secret`} className="w-full">
+                  <SelectValue placeholder="Choose a credential" />
+                </SelectTrigger>
+                <SelectContent>
+                  {secretItems.map((i) => (
+                    <SelectItem key={i.value} value={i.value}>
+                      {i.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Input
+                id={`${p}-secret`}
+                value={auth.secret}
+                placeholder="credential_name"
+                spellCheck={false}
+                disabled={disabled}
+                onChange={(e) => setAuth({ ...auth, secret: e.target.value })}
+              />
+            )}
+            {!known && (
+              <p className="text-destructive text-xs" role="alert">
+                “{auth.secret}” is not a saved credential.
+              </p>
+            )}
+          </Field>
+          {kind === 'header' && (
+            <Field label="Header name" htmlFor={`${p}-header`} error={errors[`tools.${index}.auth.header_name`]}>
+              <Input
+                id={`${p}-header`}
+                value={auth.header_name ?? ''}
+                spellCheck={false}
+                disabled={disabled}
+                onChange={(e) => setAuth({ ...auth, header_name: e.target.value })}
+              />
+            </Field>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 const isHttp = (t: Tool): t is HttpTool => t.kind === 'http'
 
@@ -83,11 +212,13 @@ function ToolCard({
   onChange,
   onRemove,
   onValidity,
+  secretNames,
 }: {
   tool: HttpTool
   index: number
   errors: Record<string, string>
   disabled?: boolean
+  secretNames: string[] | null
   onChange: (t: HttpTool) => void
   onRemove: () => void
   onValidity: (valid: boolean) => void
@@ -167,6 +298,15 @@ function ToolCard({
             onChange={(ev) => onChange({ ...tool, url: ev.target.value })}
           />
         </Field>
+
+        <AuthSection
+          tool={tool}
+          index={index}
+          errors={errors}
+          disabled={disabled}
+          secretNames={secretNames}
+          onChange={onChange}
+        />
 
         <Field
           label="When should the agent use it?"
@@ -295,6 +435,16 @@ export function ToolsTab({
   disabled,
   onValidity,
 }: TabProps<AgentConfig> & { onValidity: (key: string, valid: boolean) => void }) {
+  const { client, can } = useAuth()
+  const canList = can('provider_keys:manage')
+  const secrets = useQuery({
+    queryKey: ['secrets'],
+    queryFn: () => client.toolSecrets(),
+    enabled: canList,
+    retry: false,
+  })
+  // null = the user cannot list credentials (or storage is unavailable): they type the name.
+  const secretNames = canList && secrets.data ? secrets.data.map((x) => x.name) : null
   const tools = config.tools ?? []
   const names = tools.map((t) => t.name)
   // Stable per-tool identity: local editor state must follow the tool, not its array position.
@@ -339,6 +489,7 @@ export function ToolsTab({
             index={i}
             errors={errors}
             disabled={disabled}
+            secretNames={secretNames}
             onChange={(t) => update(i, t)}
             onRemove={() => {
               onValidity(ids[i]!, true)

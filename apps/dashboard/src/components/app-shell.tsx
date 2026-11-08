@@ -1,4 +1,4 @@
-import { AudioLines, Bot, ChevronsUpDown, LogOut, UserCog, Users } from 'lucide-react'
+import { AudioLines, Bot, ChevronsUpDown, LogOut, Settings, UserCog, Users } from 'lucide-react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
@@ -43,6 +43,13 @@ const NAV = [
     icon: Users,
     match: (p: string) => p.startsWith('/team'),
     permission: 'members:manage',
+  },
+  {
+    to: '/settings',
+    label: 'Settings',
+    icon: Settings,
+    match: (p: string) => p.startsWith('/settings'),
+    permission: 'provider_keys:manage',
   },
 ] as const
 

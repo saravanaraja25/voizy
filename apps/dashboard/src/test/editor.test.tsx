@@ -218,3 +218,80 @@ describe('tool editor state', () => {
     expect((remaining[0] as HTMLTextAreaElement).value).toContain('"second"')
   })
 })
+
+describe('tool authentication', () => {
+  const withSecrets = (extra: Parameters<typeof mockApi>[0] = {}) =>
+    mockApi(
+      routes({
+        'GET /v1/secrets': {
+          body: [
+            { name: 'clinic_api_key', description: '', allowed_hosts: ['api.clinic.example'], hint: '••••6789', updated_at: '2026-11-08T10:00:00Z' },
+            { name: 'other_key', description: '', allowed_hosts: ['x.example'], hint: '••••1111', updated_at: '2026-11-08T10:00:00Z' },
+          ],
+        },
+        ...extra,
+      }),
+    )
+
+  async function addTool() {
+    await openEditor()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('tab', { name: /tools/i }))
+    await user.click(await screen.findByRole('button', { name: /add tool/i }))
+    return user
+  }
+
+  it('offers the saved credentials and records the choice in the config, never a value', async () => {
+    const calls = withSecrets({
+      'POST /v1/agents/a1/versions': (c: Call) => ({
+        status: 201,
+        body: versionOut(2, (c.body as { config: ReturnType<typeof versionOut>['config'] }).config),
+      }),
+    })
+    const user = await addTool()
+    expect(await screen.findByText(/sent only to the hosts you allow/i)).toBeInTheDocument()
+    await user.click(screen.getByRole('combobox', { name: /authentication/i }))
+    await user.click(await screen.findByRole('option', { name: 'Bearer token' }))
+    await user.click(await screen.findByRole('combobox', { name: /credential/i }))
+    expect(await screen.findAllByRole('option', { name: /clinic_api_key|other_key/ })).toHaveLength(2)
+    await user.click(await screen.findByRole('option', { name: 'clinic_api_key' }))
+    await user.type(screen.getByLabelText('URL'), 'clinic.example/availability')
+    await user.click(screen.getByRole('button', { name: /save as new version/i }))
+
+    await waitFor(() => expect(calls.some((c) => c.method === 'POST' && c.path.endsWith('/versions'))).toBe(true))
+    const sent = calls.find((c) => c.method === 'POST' && c.path.endsWith('/versions'))!.body as {
+      config: { tools: Array<{ auth: unknown }> }
+    }
+    expect(sent.config.tools[0]!.auth).toEqual({ kind: 'bearer', secret: 'clinic_api_key', header_name: null })
+    expect(JSON.stringify(sent)).not.toMatch(/6789|••••/)
+  })
+
+  it('a header credential asks for the header name; switching back to None removes auth', async () => {
+    withSecrets()
+    const user = await addTool()
+    await user.click(screen.getByRole('combobox', { name: /authentication/i }))
+    await user.click(await screen.findByRole('option', { name: 'API key in a header' }))
+    expect(await screen.findByLabelText('Header name')).toHaveValue('X-Api-Key')
+    await user.click(screen.getByRole('combobox', { name: /authentication/i }))
+    await user.click(await screen.findByRole('option', { name: 'None' }))
+    expect(screen.queryByLabelText('Header name')).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: /credential/i })).not.toBeInTheDocument()
+  })
+
+  it('points to Settings when no credentials exist yet', async () => {
+    mockApi(routes({ 'GET /v1/secrets': { body: [] } }))
+    const user = await addTool()
+    await user.click(screen.getByRole('combobox', { name: /authentication/i }))
+    await user.click(await screen.findByRole('option', { name: 'Bearer token' }))
+    expect(await screen.findByText(/add one in settings/i)).toBeInTheDocument()
+  })
+
+  it('users who cannot list credentials type the name instead', async () => {
+    mockApi({ ...routes(), 'GET /v1/me': { body: me(['agents:read', 'agents:edit', 'agents:test']) } })
+    const user = await addTool()
+    await user.click(screen.getByRole('combobox', { name: /authentication/i }))
+    await user.click(await screen.findByRole('option', { name: 'Bearer token' }))
+    expect(await screen.findByPlaceholderText('credential_name')).toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: /credential/i })).not.toBeInTheDocument()
+  })
+})

@@ -211,6 +211,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/integrations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Integrations */
+        get: operations["list_integrations_v1_integrations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integrations/{integration_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Integration */
+        put: operations["update_integration_v1_integrations__integration_id__put"];
+        post?: never;
+        /** Delete Integration */
+        delete: operations["delete_integration_v1_integrations__integration_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integrations/{integration_id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Test Integration */
+        post: operations["test_integration_v1_integrations__integration_id__test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/invites": {
         parameters: {
             query?: never;
@@ -326,6 +378,41 @@ export interface paths {
         post?: never;
         /** Remove Member */
         delete: operations["remove_member_v1_members__user_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/secrets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Tool Secrets */
+        get: operations["list_tool_secrets_v1_secrets_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/secrets/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Tool Secret */
+        put: operations["put_tool_secret_v1_secrets__name__put"];
+        post?: never;
+        /** Delete Tool Secret */
+        delete: operations["delete_tool_secret_v1_secrets__name__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -523,6 +610,34 @@ export interface components {
             /** Tts */
             tts: components["schemas"]["ModelOut"][];
         };
+        /** FieldStatus */
+        FieldStatus: {
+            /** Configured */
+            configured: boolean;
+            /**
+             * Help
+             * @default
+             */
+            help: string;
+            /**
+             * Hint
+             * @default
+             */
+            hint: string;
+            /** Label */
+            label: string;
+            /** Name */
+            name: string;
+            /**
+             * Placeholder
+             * @default
+             */
+            placeholder: string;
+            /** Secret */
+            secret: boolean;
+            /** Value */
+            value?: string | null;
+        };
         /**
          * FillerPolicy
          * @description What the agent says while a slow tool runs. Spoken only if the tool exceeds delay_ms.
@@ -557,10 +672,25 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /**
+         * HttpAuth
+         * @description How a tool authenticates. The credential itself lives in the encrypted secret store and is
+         *     referenced by name; it never appears in a config, a log, or anything the model sees.
+         */
+        HttpAuth: {
+            /** Header Name */
+            header_name?: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "bearer" | "header" | "basic";
+            /** Secret */
+            secret: string;
+        };
         /** HttpTool */
         HttpTool: {
-            /** Auth Secret Ref */
-            auth_secret_ref?: string | null;
+            auth?: components["schemas"]["HttpAuth"] | null;
             /** Description */
             description: string;
             filler?: components["schemas"]["FillerPolicy"];
@@ -601,6 +731,28 @@ export interface components {
              * Format: uri
              */
             url: string;
+        };
+        /** IntegrationOut */
+        IntegrationOut: {
+            /** Configured */
+            configured: boolean;
+            /** Description */
+            description: string;
+            /** Fields */
+            fields: components["schemas"]["FieldStatus"][];
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Used For */
+            used_for: string;
+        };
+        /** IntegrationUpdate */
+        IntegrationUpdate: {
+            /** Values */
+            values: {
+                [key: string]: string;
+            };
         };
         /** InviteCreate */
         InviteCreate: {
@@ -864,6 +1016,13 @@ export interface components {
             /** Needs Setup */
             needs_setup: boolean;
         };
+        /** TestResultOut */
+        TestResultOut: {
+            /** Message */
+            message: string;
+            /** Ok */
+            ok: boolean;
+        };
         /** TestSessionOut */
         TestSessionOut: {
             /** Expires In S */
@@ -876,6 +1035,34 @@ export interface components {
             token: string;
             /** Url */
             url: string;
+        };
+        /** ToolSecretOut */
+        ToolSecretOut: {
+            /** Allowed Hosts */
+            allowed_hosts: string[];
+            /** Description */
+            description: string;
+            /** Hint */
+            hint: string;
+            /** Name */
+            name: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** ToolSecretPut */
+        ToolSecretPut: {
+            /** Allowed Hosts */
+            allowed_hosts: string[];
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** Value */
+            value?: string | null;
         };
         /** TurnConfig */
         TurnConfig: {
@@ -1451,6 +1638,121 @@ export interface operations {
             };
         };
     };
+    list_integrations_v1_integrations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationOut"][];
+                };
+            };
+        };
+    };
+    update_integration_v1_integrations__integration_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                integration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IntegrationUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_integration_v1_integrations__integration_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                integration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    test_integration_v1_integrations__integration_id__test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                integration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestResultOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_invites_v1_invites_get: {
         parameters: {
             query?: never;
@@ -1645,6 +1947,90 @@ export interface operations {
             header?: never;
             path: {
                 user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_tool_secrets_v1_secrets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolSecretOut"][];
+                };
+            };
+        };
+    };
+    put_tool_secret_v1_secrets__name__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ToolSecretPut"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolSecretOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_tool_secret_v1_secrets__name__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
             };
             cookie?: never;
         };

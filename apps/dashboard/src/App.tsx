@@ -11,6 +11,7 @@ import { AgentsPage } from '@/pages/agents'
 import { AccountPage } from '@/pages/account'
 import { InvitePage } from '@/pages/invite'
 import { NotFoundPage } from '@/pages/not-found'
+import { SettingsPage } from '@/pages/settings'
 import { SetupPage } from '@/pages/setup'
 import { TeamPage } from '@/pages/team'
 import { SignInPage } from '@/pages/sign-in'
@@ -74,6 +75,7 @@ export function App() {
                     }
                   />
                   <Route path="team" element={<TeamPage />} />
+                  <Route path="settings" element={<SettingsPage />} />
                   <Route path="account" element={<AccountPage />} />
                   <Route path="*" element={<NotFoundPage />} />
                 </Route>

@@ -10,6 +10,7 @@ export const ALL_PERMISSIONS = [
   'agents:publish',
   'agents:test',
   'members:manage',
+  'provider_keys:manage',
 ]
 
 export interface Call {

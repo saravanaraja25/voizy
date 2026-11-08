@@ -47,7 +47,7 @@ from voizy_agent.providers import InferenceProviders, WorkspaceProviders, build_
 from voizy_agent.session_options import get_vad, turn_handling
 from voizy_agent.tools import build_http_tools, tool_names
 
-PICKUP_TIMEOUT_S = 60.0
+PICKUP_TIMEOUT_S = float(os.environ.get("VOIZY_PICKUP_TIMEOUT_S", "60"))  # outbound ring time
 LOG_TRANSCRIPTS = os.environ.get("VOIZY_LOG_TRANSCRIPTS") == "1"
 TRACE = os.environ.get("VOIZY_TRACE") == "1"  # state-change timeline for latency debugging
 log = logging.getLogger("livekit.agents.voizy")  # inherits LiveKit's log config

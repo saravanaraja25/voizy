@@ -477,6 +477,60 @@
         "title": "CatalogOut",
         "type": "object"
       },
+      "FieldStatus": {
+        "properties": {
+          "configured": {
+            "title": "Configured",
+            "type": "boolean"
+          },
+          "help": {
+            "default": "",
+            "title": "Help",
+            "type": "string"
+          },
+          "hint": {
+            "default": "",
+            "title": "Hint",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "placeholder": {
+            "default": "",
+            "title": "Placeholder",
+            "type": "string"
+          },
+          "secret": {
+            "title": "Secret",
+            "type": "boolean"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "name",
+          "label",
+          "secret",
+          "configured"
+        ],
+        "title": "FieldStatus",
+        "type": "object"
+      },
       "FillerPolicy": {
         "additionalProperties": false,
         "description": "What the agent says while a slow tool runs. Spoken only if the tool exceeds delay_ms.",
@@ -536,20 +590,54 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
-      "HttpTool": {
+      "HttpAuth": {
         "additionalProperties": false,
+        "description": "How a tool authenticates. The credential itself lives in the encrypted secret store and is\nreferenced by name; it never appears in a config, a log, or anything the model sees.",
         "properties": {
-          "auth_secret_ref": {
+          "header_name": {
             "anyOf": [
               {
-                "maxLength": 128,
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Auth Secret Ref"
+            "title": "Header Name"
+          },
+          "kind": {
+            "enum": [
+              "bearer",
+              "header",
+              "basic"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "secret": {
+            "title": "Secret",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "secret"
+        ],
+        "title": "HttpAuth",
+        "type": "object"
+      },
+      "HttpTool": {
+        "additionalProperties": false,
+        "properties": {
+          "auth": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HttpAuth"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "description": {
             "maxLength": 1000,
@@ -620,6 +708,65 @@
           "url"
         ],
         "title": "HttpTool",
+        "type": "object"
+      },
+      "IntegrationOut": {
+        "properties": {
+          "configured": {
+            "title": "Configured",
+            "type": "boolean"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/FieldStatus"
+            },
+            "title": "Fields",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "used_for": {
+            "title": "Used For",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "description",
+          "used_for",
+          "configured",
+          "fields"
+        ],
+        "title": "IntegrationOut",
+        "type": "object"
+      },
+      "IntegrationUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "values": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "maxProperties": 8,
+            "title": "Values",
+            "type": "object"
+          }
+        },
+        "required": [
+          "values"
+        ],
+        "title": "IntegrationUpdate",
         "type": "object"
       },
       "InviteCreate": {
@@ -1333,6 +1480,24 @@
         "title": "SetupStatus",
         "type": "object"
       },
+      "TestResultOut": {
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "message"
+        ],
+        "title": "TestResultOut",
+        "type": "object"
+      },
       "TestSessionOut": {
         "properties": {
           "expires_in_s": {
@@ -1364,6 +1529,79 @@
           "expires_in_s"
         ],
         "title": "TestSessionOut",
+        "type": "object"
+      },
+      "ToolSecretOut": {
+        "properties": {
+          "allowed_hosts": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Allowed Hosts",
+            "type": "array"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "hint": {
+            "title": "Hint",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "description",
+          "allowed_hosts",
+          "hint",
+          "updated_at"
+        ],
+        "title": "ToolSecretOut",
+        "type": "object"
+      },
+      "ToolSecretPut": {
+        "additionalProperties": false,
+        "properties": {
+          "allowed_hosts": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10,
+            "title": "Allowed Hosts",
+            "type": "array"
+          },
+          "description": {
+            "default": "",
+            "maxLength": 200,
+            "title": "Description",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "allowed_hosts"
+        ],
+        "title": "ToolSecretPut",
         "type": "object"
       },
       "TurnConfig": {
@@ -2333,6 +2571,178 @@
         ]
       }
     },
+    "/v1/integrations": {
+      "get": {
+        "operationId": "list_integrations_v1_integrations_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/IntegrationOut"
+                  },
+                  "title": "Response List Integrations V1 Integrations Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Integrations",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/v1/integrations/{integration_id}": {
+      "delete": {
+        "operationId": "delete_integration_v1_integrations__integration_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "integration_id",
+            "required": true,
+            "schema": {
+              "title": "Integration Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Integration",
+        "tags": [
+          "integrations"
+        ]
+      },
+      "put": {
+        "operationId": "update_integration_v1_integrations__integration_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "integration_id",
+            "required": true,
+            "schema": {
+              "title": "Integration Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IntegrationUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Integration",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/v1/integrations/{integration_id}/test": {
+      "post": {
+        "operationId": "test_integration_v1_integrations__integration_id__test_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "integration_id",
+            "required": true,
+            "schema": {
+              "title": "Integration Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestResultOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Test Integration",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
     "/v1/invites": {
       "get": {
         "operationId": "list_invites_v1_invites_get",
@@ -2636,6 +3046,131 @@
         "summary": "Remove Member",
         "tags": [
           "team"
+        ]
+      }
+    },
+    "/v1/secrets": {
+      "get": {
+        "operationId": "list_tool_secrets_v1_secrets_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ToolSecretOut"
+                  },
+                  "title": "Response List Tool Secrets V1 Secrets Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Tool Secrets",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/v1/secrets/{name}": {
+      "delete": {
+        "operationId": "delete_tool_secret_v1_secrets__name__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Tool Secret",
+        "tags": [
+          "integrations"
+        ]
+      },
+      "put": {
+        "operationId": "put_tool_secret_v1_secrets__name__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToolSecretPut"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolSecretOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Put Tool Secret",
+        "tags": [
+          "integrations"
         ]
       }
     },

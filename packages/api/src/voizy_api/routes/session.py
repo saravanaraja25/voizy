@@ -12,7 +12,7 @@ from voizy_core.domain.permissions import Permission
 from voizy_core.services import accounts
 from voizy_core.services.auth import Principal
 
-from voizy_api.livekit import mint_test_session
+from voizy_api.livekit import livekit_for_workspace, mint_test_session
 from voizy_api.schemas.session import MeOut, TestSessionOut, VersionSummary
 from voizy_api.web.auth import current_principal, require
 from voizy_api.web.common import audit, not_found, returned
@@ -72,7 +72,7 @@ async def create_test_session(
     request: Request,
     p: Annotated[Principal, Depends(require(Permission.AGENTS_TEST))],
 ) -> TestSessionOut:
-    settings = request.app.state.livekit
+    settings = await livekit_for_workspace(request, p.workspace_id)
     if settings is None:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "voice runtime is not configured")
     async with workspace_tx(request.app.state.pool, p.workspace_id) as conn:

@@ -10,6 +10,7 @@ import sys
 from psycopg import AsyncConnection
 
 from voizy_core.db.migrate import migrate
+from voizy_core.security.secretbox import SecretBox
 from voizy_core.services.bootstrap import bootstrap_workspace
 
 
@@ -43,7 +44,13 @@ def main(argv: list[str] | None = None) -> int:
     boot = sub.add_parser("bootstrap", help="create a workspace and its first superadmin API key")
     boot.add_argument("--name", required=True, help="workspace name")
     sub.add_parser("migrate", help="apply pending database migrations")
+    sub.add_parser(
+        "generate-secret-key", help="print a new VOIZY_SECRET_KEYS value for encrypting stored keys"
+    )
     args = parser.parse_args(argv)
+    if args.command == "generate-secret-key":
+        print(f"VOIZY_SECRET_KEYS=k1:{SecretBox.generate_key()}")
+        return 0
     if args.command == "migrate":
         return asyncio.run(_migrate())
     return asyncio.run(_bootstrap(args.name))

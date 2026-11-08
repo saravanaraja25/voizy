@@ -13,10 +13,12 @@ from psycopg_pool import AsyncConnectionPool
 from voizy_core.db.pool import open_pool
 from voizy_core.domain.permissions import ALL_PERMISSIONS
 from voizy_core.security.apikeys import generate_api_key
+from voizy_core.security.secretbox import SecretBox
 from voizy_core.security.throttle import Throttle
 from voizy_core.services.bootstrap import BootstrapResult, bootstrap_workspace
 
 from voizy_api.app import create_app
+from voizy_api.integration_checks import CheckResult
 from voizy_api.settings import Settings
 
 MakeKey = Callable[..., str]
@@ -27,6 +29,18 @@ async def pool(admin_dsn: str) -> AsyncIterator[AsyncConnectionPool]:
     p = await open_pool(admin_dsn)
     yield p
     await p.close()
+
+
+class FakeChecker:
+    """Stands in for 'test connection': records what it was asked to verify."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, dict[str, str]]] = []
+        self.ok = True
+
+    async def __call__(self, integration_id: str, values: dict[str, str]) -> CheckResult:
+        self.calls.append((integration_id, dict(values)))
+        return CheckResult(self.ok, "Connected." if self.ok else "The provider rejected the key.")
 
 
 SETUP_TOKEN = "setup-token-for-tests"  # noqa: S105 - test value
@@ -40,6 +54,8 @@ def app_settings() -> Settings:
         cookie_secure=False,  # tests speak plain http
         setup_token=SETUP_TOKEN,
         custom_roles=True,  # the existing suites exercise roles; superadmin-only has its own
+        secret_box=SecretBox.from_env_value(f"k1:{SecretBox.generate_key()}"),
+        integration_checker=FakeChecker(),
         email_throttle=Throttle(5, 900),
         ip_throttle=Throttle(30, 900),
     )

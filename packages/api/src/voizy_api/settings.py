@@ -6,7 +6,11 @@ import os
 import secrets
 from dataclasses import dataclass, field
 
+from voizy_core.security.secretbox import SecretBox, SecretError
+from voizy_core.security.ssrf import SsrfPolicy
 from voizy_core.security.throttle import Throttle
+
+from voizy_api.integration_checks import Checker, make_checker
 
 
 @dataclass
@@ -18,6 +22,10 @@ class Settings:
     # Off by default: a workspace has one role (Superadmin) and invitations are superadmin-only.
     # On: role templates are seeded, roles can be managed, and invitations may pick a role.
     custom_roles: bool = False
+    # Encrypts stored integration keys and tool credentials. None = secret storage is unavailable.
+    secret_box: SecretBox | None = None
+    # 'Test connection' for each integration; replaceable in tests.
+    integration_checker: Checker | None = None
     # Per-account and per-address failure limits for login-style endpoints.
     email_throttle: Throttle = field(default_factory=lambda: Throttle(5, 900))
     ip_throttle: Throttle = field(default_factory=lambda: Throttle(30, 900))
@@ -26,7 +34,16 @@ class Settings:
     def from_env(cls) -> Settings:
         raw = os.environ.get("VOIZY_CORS_ORIGINS", "")
         origins = [o.strip() for o in raw.split(",") if o.strip() and o.strip() != "*"]
+        box: SecretBox | None = None
+        if raw_keys := os.environ.get("VOIZY_SECRET_KEYS"):
+            try:
+                box = SecretBox.from_env_value(raw_keys)
+            except SecretError:
+                box = None  # reported by the endpoints as 'not configured', never a crash
+        dev_local = os.environ.get("VOIZY_DEV_ALLOW_LOCAL_TOOLS") == "1"
         settings = cls(
+            secret_box=box,
+            integration_checker=make_checker(ssrf_policy=SsrfPolicy(allow_loopback=dev_local)),
             cors_origins=origins,
             cookie_secure=os.environ.get("VOIZY_COOKIE_SECURE", "1") != "0",
             custom_roles=os.environ.get("VOIZY_ENABLE_ROLES") == "1",

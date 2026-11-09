@@ -248,7 +248,7 @@ All settings are environment variables. In Docker, put them in `.env`.
 | `VOIZY_PICKUP_TIMEOUT_S` | How long an outbound call waits for the callee to answer | `60` |
 | `VOIZY_LIVEKIT_SIP_HOST` | LiveKit SIP address; needed only for self-hosted LiveKit | derived from the LiveKit URL |
 | `VOIZY_SIP_ALLOWED_ADDRESSES` | Override the Twilio signaling CIDRs the inbound trunk accepts | Twilio's published list |
-| `VOIZY_PORT`, `VOIZY_PG_PORT` | Compose host ports (dashboard 8080, Postgres 5433), bound to `127.0.0.1` | |
+| `VOIZY_PORT`, `VOIZY_PG_PORT` | Compose host ports (dashboard 8080, Postgres 5433), bound to `127.0.0.1`. Changing `VOIZY_PORT` also updates the allowed origins unless you set `VOIZY_PUBLIC_ORIGINS` | |
 | `VOIZY_LOG_TRANSCRIPTS` | `1` logs what is said from the worker. **Personal data; off by default** | off |
 | `VOIZY_TRACE` | `1` logs a state timeline for latency debugging | off |
 | `VOIZY_DEV_ALLOW_LOCAL_TOOLS` | **Development only.** Lets tools call loopback addresses | off |

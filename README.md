@@ -25,6 +25,15 @@ Apache-2.0 · bring your own keys · multi-tenant by design (SaaS-ready) but bui
 | **See what happened** | Calls with status, length, redacted transcript, tool use and per-turn latency; the other party's number (masked unless permitted). |
 | **Stay in control** | Accounts and invites, encrypted write-only keys, audit log, per-agent retention and redaction. |
 
+## Screenshots
+
+| | |
+|---|---|
+| ![The agent editor next to a finished browser test call, with transcript and per-turn response times](docs/images/editor-test-call.png)<br>**Build and test an agent.** Edit the prompt, models and tools, then talk to it from the browser and watch the response time of every turn. | ![A call record: response time per turn, tool use and the redacted transcript](docs/images/call-detail.png)<br>**Every call is recorded.** Per-turn latency, which tools ran, and a redacted transcript. |
+| ![A finished campaign with progress and each person's outcome](docs/images/campaign.png)<br>**Campaigns.** Who was reached, who did not answer, who hit voicemail and who asked not to be called. | ![The knowledge base with a search showing the passage an agent would find](docs/images/knowledge.png)<br>**Knowledge.** Documents the agent answers from, with a search to check what it will find. |
+
+<sub>Screenshots use fictional demo data; phone numbers shown are made up.</sub>
+
 ## Status
 
 Working end to end on a free LiveKit Cloud project. Read this table honestly before relying on it.

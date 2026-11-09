@@ -25,3 +25,8 @@ afterEach(() => {
   cleanup()
   sessionStorage.clear()
 })
+
+// jsdom has no PointerEvent; Base UI's Switch dispatches one when clicked.
+if (typeof window !== 'undefined' && !('PointerEvent' in window)) {
+  ;(window as unknown as { PointerEvent: typeof MouseEvent }).PointerEvent = MouseEvent
+}

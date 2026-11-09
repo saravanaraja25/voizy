@@ -1,4 +1,14 @@
 import type {
+  CampaignCreate,
+  CampaignCreated,
+  CampaignOut,
+  ContactListOut,
+  CsvPreview,
+  DncOut,
+  DocumentDetailOut,
+  DocumentOut,
+  HitOut,
+  ImportReport,
   CallDetailOut,
   OutboundCall,
   PhoneNumberOut,
@@ -146,6 +156,35 @@ export function createClient(options: ClientOptions = {}) {
     callSummary: (days = 7) => request<CallSummaryOut>('GET', `/v1/calls/summary?days=${days}`),
     call: (id: string) => request<CallDetailOut>('GET', `/v1/calls/${encodeURIComponent(id)}`),
     deleteCall: (id: string) => request<void>('DELETE', `/v1/calls/${encodeURIComponent(id)}`),
+    // knowledge base
+    documents: () => request<DocumentOut[]>('GET', '/v1/kb/documents'),
+    collections: () => request<{ collections: string[] }>('GET', '/v1/kb/collections'),
+    addDocument: (body: { title: string; content: string; collection: string; source_name: string }) =>
+      request<DocumentOut>('POST', '/v1/kb/documents', body),
+    document: (id: string) => request<DocumentDetailOut>('GET', `/v1/kb/documents/${encodeURIComponent(id)}`),
+    deleteDocument: (id: string) => request<void>('DELETE', `/v1/kb/documents/${encodeURIComponent(id)}`),
+    searchKb: (q: string, collection: string) =>
+      request<HitOut[]>('GET', `/v1/kb/search?${new URLSearchParams({ q, collection })}`),
+    // campaigns
+    campaigns: () => request<CampaignOut[]>('GET', '/v1/campaigns'),
+    campaign: (id: string) => request<CampaignOut>('GET', `/v1/campaigns/${encodeURIComponent(id)}`),
+    previewCsv: (body: { csv: string; default_country_code?: string; agent_id?: string }) =>
+      request<CsvPreview>('POST', '/v1/campaigns/preview-csv', body),
+    createCampaign: (body: CampaignCreate) => request<CampaignCreated>('POST', '/v1/campaigns', body),
+    campaignAction: (id: string, action: 'start' | 'pause' | 'resume' | 'cancel') =>
+      request<CampaignOut>('POST', `/v1/campaigns/${encodeURIComponent(id)}/${action}`),
+    campaignContacts: (id: string, params: { status?: string; offset?: number; limit?: number }) => {
+      const q = new URLSearchParams()
+      if (params.status) q.set('status', params.status)
+      q.set('offset', String(params.offset ?? 0))
+      q.set('limit', String(params.limit ?? 50))
+      return request<ContactListOut>('GET', `/v1/campaigns/${encodeURIComponent(id)}/contacts?${q}`)
+    },
+    addContacts: (id: string, body: { csv: string; default_country_code?: string }) =>
+      request<ImportReport>('POST', `/v1/campaigns/${encodeURIComponent(id)}/contacts`, body),
+    dnc: () => request<DncOut[]>('GET', '/v1/dnc'),
+    addDnc: (e164: string, note: string) => request<DncOut>('POST', '/v1/dnc', { e164, note }),
+    removeDnc: (e164: string) => request<void>('DELETE', `/v1/dnc?${new URLSearchParams({ e164 })}`),
     // phone numbers and outbound calls
     phoneNumbers: () => request<PhoneNumberOut[]>('GET', '/v1/phone-numbers'),
     connectNumber: (body: { e164: string; label: string; agent_id: string | null }) =>

@@ -10,6 +10,10 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { AgentsPage } from '@/pages/agents'
 import { CallDetailPage } from '@/pages/call-detail'
 import { CallsPage } from '@/pages/calls'
+import { CampaignDetailPage } from '@/pages/campaign-detail'
+import { CampaignNewPage } from '@/pages/campaign-new'
+import { CampaignsPage } from '@/pages/campaigns'
+import { KnowledgePage } from '@/pages/knowledge'
 import { AccountPage } from '@/pages/account'
 import { InvitePage } from '@/pages/invite'
 import { NotFoundPage } from '@/pages/not-found'
@@ -79,6 +83,10 @@ export function App() {
                   />
                   <Route path="calls" element={<CallsPage />} />
                   <Route path="calls/:id" element={<CallDetailPage />} />
+                  <Route path="knowledge" element={<KnowledgePage />} />
+                  <Route path="campaigns" element={<CampaignsPage />} />
+                  <Route path="campaigns/new" element={<CampaignNewPage />} />
+                  <Route path="campaigns/:id" element={<CampaignDetailPage />} />
                   <Route path="phone" element={<PhonePage />} />
                   <Route path="team" element={<TeamPage />} />
                   <Route path="settings" element={<SettingsPage />} />

@@ -1,4 +1,4 @@
-import { AudioLines, Bot, ChevronsUpDown, LogOut, Phone, PhoneCall, Settings, UserCog, Users } from 'lucide-react'
+import { AudioLines, BookOpen, Bot, Megaphone, ChevronsUpDown, LogOut, Phone, PhoneCall, Settings, UserCog, Users } from 'lucide-react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
@@ -43,6 +43,20 @@ const NAV = [
     icon: PhoneCall,
     match: (p: string) => p.startsWith('/calls'),
     permission: 'calls:read',
+  },
+  {
+    to: '/campaigns',
+    label: 'Campaigns',
+    icon: Megaphone,
+    match: (p: string) => p.startsWith('/campaigns'),
+    permission: 'campaigns:read',
+  },
+  {
+    to: '/knowledge',
+    label: 'Knowledge',
+    icon: BookOpen,
+    match: (p: string) => p.startsWith('/knowledge'),
+    permission: 'kb:read',
   },
   {
     to: '/phone',

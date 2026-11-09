@@ -17,6 +17,12 @@ export const ALL_PERMISSIONS = [
   'calls:place_outbound',
   'numbers:read',
   'numbers:manage',
+  'kb:read',
+  'kb:manage',
+  'campaigns:read',
+  'campaigns:create',
+  'campaigns:run',
+  'campaigns:manage_contacts',
 ]
 
 export interface Call {

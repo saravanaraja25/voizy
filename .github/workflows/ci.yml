@@ -80,4 +80,5 @@ jobs:
           docker run --rm voizy-api:ci python -c "$IMPORT_ALL" voizy_api
           docker run --rm voizy-api:ci python -c "$IMPORT_ALL" voizy_core
           docker run --rm voizy-agent:ci python -c "$IMPORT_ALL" voizy_agent
-          docker run --rm voizy-dashboard:ci nginx -t
+          # The config proxies to the Compose service name 'api', so give it an address to resolve.
+          docker run --rm --add-host api:127.0.0.1 voizy-dashboard:ci nginx -t

@@ -8,7 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { breakdown, isTurnLatency, TARGET_MS } from '@/lib/latency'
+import { breakdown, isTurnLatency, isVoizyError, TARGET_MS } from '@/lib/latency'
 import type { TurnLatency } from '@/lib/latency'
 import { cn } from '@/lib/utils'
 
@@ -131,9 +131,13 @@ export function TestConsole({
       })
       room.on(RoomEvent.TrackUnsubscribed, (track) => track.detach().forEach((el) => el.remove()))
       room.on(RoomEvent.DataReceived, (payload, _p, _k, topic) => {
-        if (topic !== 'voizy.latency') return
+        if (topic !== 'voizy.latency' && topic !== 'voizy.error') return
         try {
           const msg: unknown = JSON.parse(new TextDecoder().decode(payload))
+          if (topic === 'voizy.error') {
+            if (isVoizyError(msg)) setError(msg.message)
+            return
+          }
           if (isTurnLatency(msg)) {
             const id = ++turnId.current // outside the updater: StrictMode runs updaters twice
             setTurns((t) => [...t, { id, ms: msg.ms }])

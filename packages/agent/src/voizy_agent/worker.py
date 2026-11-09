@@ -15,6 +15,7 @@ from livekit.agents import (
     Agent,
     AgentSession,
     AgentStateChangedEvent,
+    CloseEvent,
     ConversationItemAddedEvent,
     FunctionToolsExecutedEvent,
     JobContext,
@@ -22,6 +23,7 @@ from livekit.agents import (
     inference,
     llm,
 )
+from livekit.agents.voice.events import CloseReason
 from livekit.plugins import silero
 from psycopg_pool import AsyncConnectionPool
 from voizy_core.db.pool import open_pool
@@ -51,6 +53,7 @@ from voizy_agent.credentials import (
     load_livekit,
     secret_box_from_env,
 )
+from voizy_agent.failures import Failure, describe_failure
 from voizy_agent.http_tool import HttpToolExecutor
 from voizy_agent.instructions import CallContext, build_instructions
 from voizy_agent.knowledge import Knowledge, KnowledgeAgent, search_tool
@@ -79,6 +82,16 @@ _pool: AsyncConnectionPool | None = None
 
 
 _background: set[asyncio.Task[None]] = set()  # keep references so tasks are not collected early
+
+
+async def _publish_error(room: rtc.Room, message: str) -> None:
+    """Tell the connected dashboard why the call stopped (no personal data)."""
+    try:
+        await room.local_participant.publish_data(
+            json.dumps({"type": "error", "message": message}), reliable=True, topic="voizy.error"
+        )
+    except Exception:  # noqa: BLE001 - telling the user must never raise
+        log.warning("could not publish the error message")
 
 
 async def _publish_latency(room: rtc.Room, ms: dict[str, int]) -> None:
@@ -294,18 +307,27 @@ async def entrypoint(ctx: JobContext) -> None:
     async def _log_summary() -> None:
         log.info("latency summary (ms): %s", recorder.summary())
 
+    failure: Failure | None = None
+
     async def _close_history() -> None:
         if history is not None:
-            await history.close(
-                reason=ender.reason or "ended"
-            )  # idempotent: safe from both paths below
+            await history.close(  # idempotent: safe from both paths below
+                status="failed" if failure else "completed", reason=ender.reason or "ended"
+            )
 
     if history is not None:
 
         @session.on("close")
-        def _on_close(_: object) -> None:
+        def _on_close(ev: CloseEvent) -> None:
+            nonlocal failure
             # Close the record when the conversation ends, not when the job process finally exits
             # (that can lag by many seconds, leaving the call "in progress" in the dashboard).
+            if ev.reason == CloseReason.ERROR and ev.error is not None:
+                failure = describe_failure(ev.error)
+                ender.reason = ender.reason or failure.reason
+                err = asyncio.create_task(_publish_error(ctx.room, failure.message))
+                _background.add(err)
+                err.add_done_callback(_background.discard)
             task = asyncio.create_task(_close_history())
             _background.add(task)
             task.add_done_callback(_background.discard)

@@ -135,6 +135,9 @@ export function CallDetailPage() {
             {dateTime.format(new Date(call.started_at))} · {SOURCE_LABEL[call.source] ?? call.source} ·{' '}
             {formatDuration(call.duration_s)}
           </p>
+          {call.status === 'failed' && call.end_reason && (
+            <p className="text-destructive text-sm">Ended: {call.end_reason}</p>
+          )}
           {call.remote_number && (
             <p className="text-sm">
               <span className="text-muted-foreground">

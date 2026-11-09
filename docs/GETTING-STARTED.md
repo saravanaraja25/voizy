@@ -173,7 +173,7 @@ Afterwards open **Calls** to see the transcript, tools used, and the other party
 |---|---|
 | Settings → LiveKit "Test connection" fails | Check the URL starts with `wss://` and has no trailing path, and that the key and secret belong to the same project. Create a new key and try again. |
 | Browser call connects but the agent never speaks | The voice worker isn't running or isn't connected: `docker compose logs agent`. After saving LiveKit keys it should log that it registered a worker. Also make sure no other worker (another machine, a dev setup) is registered on the same project with the same name; set `VOIZY_AGENT_NAME` to tell them apart. |
-| The agent speaks once then errors, or "quota" messages | Your LiveKit free Inference allowance is used up. Use your own provider keys (see 1.4) or upgrade. |
+| The test console says a speech, language or voice service refused the request (429), or the agent stops speaking | Your LiveKit free Inference allowance is used up (or you are being rate-limited). The call is recorded as *failed, provider error (429)*. Use your own provider keys (see 1.4) or upgrade. This happens after a lot of test calls on the free plan. |
 | Microphone doesn't work | Use `http://localhost`, or HTTPS. Allow the microphone for the site. Use headphones. |
 | Connecting a number fails with a Twilio message | Read the message: wrong SID/token, number not in this Twilio account, or the account must be upgraded for SIP trunking (see 2.2). Nothing is left half-created. |
 | Outbound call fails or never rings | Is the destination verified (trial)? Is its country enabled in Geo permissions (2.3)? Is the agent published? Look for Twilio errors 32100 or 32205 in the Twilio Console debugger. |

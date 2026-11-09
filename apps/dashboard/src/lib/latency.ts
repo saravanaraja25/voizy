@@ -33,3 +33,10 @@ export function isTurnLatency(v: unknown): v is { type: 'turn_latency'; ms: Reco
   if (o.type !== 'turn_latency' || typeof o.ms !== 'object' || o.ms === null) return false
   return Object.values(o.ms).every((n) => typeof n === 'number' && Number.isFinite(n))
 }
+
+/** The worker tells the dashboard why a call stopped when a speech, language or voice service failed. */
+export function isVoizyError(v: unknown): v is { type: 'error'; message: string } {
+  if (typeof v !== 'object' || v === null) return false
+  const o = v as { type?: unknown; message?: unknown }
+  return o.type === 'error' && typeof o.message === 'string' && o.message.length > 0 && o.message.length <= 600
+}

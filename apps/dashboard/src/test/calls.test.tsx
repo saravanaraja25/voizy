@@ -72,6 +72,15 @@ describe('calls', () => {
     expect(screen.getByText(/hidden for your role/i)).toBeInTheDocument()
   })
 
+  it('shows why a failed call ended', async () => {
+    mockApi({
+      ...base,
+      'GET /v1/calls/c1': { body: detail({ call: call({ status: 'failed', end_reason: 'provider error (429)' }), turns: [] }) },
+    })
+    renderAt('/calls/c1')
+    expect(await screen.findByText(/Ended: provider error \(429\)/)).toBeInTheDocument()
+  })
+
   it('shows an empty state', async () => {
     mockApi({ ...base, 'GET /v1/calls': { body: { items: [], next_cursor: null } } })
     renderAt('/calls')

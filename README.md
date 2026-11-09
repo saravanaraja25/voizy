@@ -180,7 +180,8 @@ as a masked hint afterwards.
 ### 2. Build an agent
 *Agents → New agent*, then edit tabs: **Prompt** (instructions, `{{variables}}`, greeting),
 **Voice & models**, **Turn-taking** (how quickly it replies versus how patient it is, interruptions,
-silence and call-length limits), **Tools**, **Knowledge**. *Save as new version*, test it, then
+silence and call-length limits), **Tools**, **Knowledge**, **Privacy** (keep transcripts, mask
+personal details, retention days). *Save as new version*, test it, then
 *Publish*. Phone calls use the published version; the test console can run any saved version.
 
 ### 3. Tools
@@ -209,8 +210,8 @@ press Start. Details, voicemail and opt-out behavior, and compliance notes:
 
 ### 7. Calls
 *Calls* lists every conversation with status, length and response time; open one for the redacted
-transcript, tool use and a latency chart. Privacy is per agent: keep transcripts or not, redaction, and
-retention days. Audio is not recorded.
+transcript, tool use and a latency chart. Privacy is per agent, set in the editor's **Privacy** tab: keep transcripts or
+not, mask personal details, and retention days. Audio is not recorded.
 
 ### 8. Team
 *Team → Invite someone* gives you a one-time link to send (no email server needed). Everyone is a
@@ -330,7 +331,7 @@ see what the app sees, `SET ROLE voizy_app; SELECT set_config('app.workspace_id'
 - **Phone calls are regulated.** Calling, call-time rules and recording laws vary by country. The
   consent box and calling windows are tools, not legal compliance. You are responsible for permission
   to call.
-- **Privacy:** transcripts are personal data. Set each agent's retention and redaction, and leave
+- **Privacy:** transcripts are personal data. Set each agent's retention and masking in its Privacy tab, and leave
   `VOIZY_LOG_TRANSCRIPTS` off.
 
 ## Troubleshooting

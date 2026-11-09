@@ -295,7 +295,15 @@ async def entrypoint(ctx: JobContext) -> None:
     limit.add_done_callback(_background.discard)
     ctx.add_shutdown_callback(_stop_limit)
     greeting = next((lang.greeting for lang in cfg.languages if lang.greeting), None)
-    if greeting:
+    if target is not None and target.source == "outbound":
+        # The configured greeting is written for people who call in ("thanks for calling"); on a
+        # call we placed, the agent introduces itself and says why it is calling instead.
+        await session.generate_reply(
+            instructions="You placed this call and the person has just answered. Greet them, say "
+            "who you are and which company you are from, and briefly say why you are calling "
+            "based on your instructions. Then wait for their reply."
+        )
+    elif greeting:
         await session.say(greeting)
     else:
         await session.generate_reply(instructions="Greet the caller briefly and ask how to help.")

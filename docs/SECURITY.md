@@ -69,6 +69,9 @@ Rules the code is held to. Each has a test or is marked *planned*.
 - Phone numbers are unique across workspaces; call dispatch metadata is set by the server, never
   by a caller or browser. Outbound calls need `calls:place_outbound`, explicit consent, a published
   agent, and are capped per workspace; audit entries keep only the last four digits dialed.
+- The other party's number is stored with the call and masked in the API and dashboard unless the
+  reader holds `calls:view_pii`; it expires with the call. The dialed number reaches the worker in
+  server-signed dispatch metadata and is validated as E.164.
 - Provider-side ids stay server-side; the per-number SIP password exists only inside Twilio and
   LiveKit. See [TELEPHONY.md](TELEPHONY.md).
 

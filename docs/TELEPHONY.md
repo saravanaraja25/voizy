@@ -49,7 +49,10 @@ Campaign-level consent, do-not-call lists and quiet hours are not built yet.
   number. Override with `VOIZY_SIP_ALLOWED_ADDRESSES`.
 - Twilio's auth token never leaves the server: it is stored encrypted, decrypted only to call
   Twilio, and never logged or returned.
-- Caller numbers are not stored with call history.
+- The other party's number is stored with the call (for outbound calls, the number the server dialed; for
+  inbound, the caller ID from the phone network). The dashboard and API show it masked (`•••• 0134`)
+  unless the reader holds `calls:view_pii`, and it expires with the call. Transcripts still redact
+  numbers spoken aloud.
 
 ## What is verified, and what is not
 
@@ -67,6 +70,15 @@ Campaign-level consent, do-not-call lists and quiet hours are not built yet.
 - *Twilio refused the request*: the message includes Twilio's reason (for example a taken domain).
 - *Calls ring and drop*: confirm the number is attached to the trunk in the Twilio console and the
   trunk's origination URI matches your LiveKit SIP address.
+
+## What the agent knows about the call
+
+On phone calls the agent is told the other person's number and direction. Prompt variables
+`{{caller_number}}` (inbound), `{{called_number}}` (outbound) and `{{call_direction}}` are filled in,
+and a short "This call" block is added automatically: the agent uses that number for tools that need
+a phone number and confirms it by its last four digits instead of asking the person to read it out.
+On outbound calls the agent introduces itself and says why it is calling, rather than using the
+inbound-style greeting. Browser test calls have no number.
 
 ## Hanging up
 

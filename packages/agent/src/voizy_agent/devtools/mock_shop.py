@@ -186,7 +186,7 @@ def create_mock_app(delay_ms: int = 0) -> FastAPI:
             raise HTTPException(404, "unknown product")
         if not product["in_stock"]:
             raise HTTPException(409, "that product is out of stock")
-        app.state.links.append({"sku": req.sku, "size": req.size})
+        app.state.links.append({"sku": req.sku, "size": req.size, "phone": req.phone})
         return {
             "sent": True,
             "via": "text message",

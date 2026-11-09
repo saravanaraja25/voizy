@@ -1,5 +1,7 @@
 # Voizy
 
+[![CI](https://github.com/saravanaraja25/voizy/actions/workflows/ci.yml/badge.svg)](https://github.com/saravanaraja25/voizy/actions/workflows/ci.yml) [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
 **Open-source, self-hostable platform for AI voice agents.** Create agents from a dashboard instead
 of writing code, give them tools and knowledge, connect a phone number, take inbound calls, and run
 outbound campaigns. English first; Tamil and other languages are planned.

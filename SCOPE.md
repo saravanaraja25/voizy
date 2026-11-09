@@ -18,7 +18,8 @@ One generic LiveKit Agents worker that builds its pipeline from a versioned `Age
   while tools run, a pre-warmed VAD, hang-up, call time and silence limits.
 - **Not built:** backchannel (the config field exists but does nothing), speech-to-speech ("realtime")
   models, config caching (a config is loaded per call), pre-warmed provider connections.
-- **Not verified:** direct provider keys against the real providers.
+- **Verified:** direct Google AI key (language model) in a live conversation. **Not verified:** direct
+  Deepgram, OpenAI and Cartesia keys against the real providers.
 
 ### 2. Agent builder (dashboard)
 - **Built:** create agents; prompt with variables and a greeting; voice and models; turn-taking;

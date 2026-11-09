@@ -146,9 +146,14 @@ class WorkspaceProviders:
             from livekit.plugins import openai  # noqa: PLC0415
 
             return openai.LLM(model=choice.model, api_key=key)
+        from google.genai import types  # noqa: PLC0415
         from livekit.plugins import google  # noqa: PLC0415
 
-        return google.LLM(model=choice.model, api_key=key)
+        # Function calling (every agent has tools, even end_call) needs the v1beta API. Google's
+        # client can otherwise pick v1, which rejects it with "Function calling is not enabled".
+        return google.LLM(
+            model=choice.model, api_key=key, http_options=types.HttpOptions(api_version="v1beta")
+        )
 
     def tts(self, choice: VoiceChoice, language: str) -> typing.Any:
         if choice.connection != "own":

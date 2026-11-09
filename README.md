@@ -73,7 +73,7 @@ Working end to end on a free LiveKit Cloud project. Read this table honestly bef
 | Twilio provisioning and outbound calls | Worked on a **free Twilio trial account** and the **free LiveKit Cloud plan**: trunk setup, number connection and a real outbound call to a verified phone. Twilio REST calls also checked against a mock server and Twilio's docs |
 | **Inbound call through real Twilio** | **Not yet verified** end to end |
 | **A campaign dialing through real Twilio** | **Not yet verified** (same dialing code as one-off outbound calls) |
-| Direct provider keys (Deepgram, OpenAI, Google, Cartesia) | Built and unit-tested; **not run against the real providers** |
+| Direct provider keys | **Google AI (language model): verified** with a real key in a live conversation (this found and fixed an API-version bug). Deepgram, OpenAI and Cartesia: built and unit-tested, **not yet run against the real providers** |
 | Latency target (under 800 ms to first audio) | **Not met yet**: about 820 ms median, 1.7 s p95 on a small sample. See [docs/LATENCY.md](docs/LATENCY.md). Phone calls feel slower than the browser test. |
 | Not built | Post-call summaries and analytics, call recording (audio), PDF import, vector search, flow builder, MCP tools, Tamil/other languages |
 

@@ -64,6 +64,10 @@ def test_own_keys_build_the_providers_own_plugins() -> None:
 def test_google_llm_uses_the_google_plugin() -> None:
     parts = build_pipeline(cfg("google", "gemini-2.5-flash"), providers())
     assert isinstance(parts.llm, google.LLM)
+    # Tools need function calling, which only the v1beta API allows (a real Google key was rejected
+    # with "Function calling is not enabled for api version v1" before this was set).
+    http_options: Any = parts.llm._opts.http_options
+    assert http_options.api_version == "v1beta"
 
 
 def test_missing_key_fails_loudly_instead_of_falling_back() -> None:

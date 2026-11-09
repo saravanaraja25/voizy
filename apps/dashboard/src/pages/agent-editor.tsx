@@ -8,6 +8,7 @@ import type { AgentConfig, AgentOut, VersionOut, VersionSummary } from '@/api/ty
 import { useAuth } from '@/auth/AuthContext'
 import { PromptTab } from '@/components/editor/prompt-tab'
 import { KnowledgeTab } from '@/components/editor/knowledge-tab'
+import { PrivacyTab } from '@/components/editor/privacy-tab'
 import { ToolsTab } from '@/components/editor/tools-tab'
 import { TurnTab } from '@/components/editor/turn-tab'
 import { VoiceTab } from '@/components/editor/voice-tab'
@@ -239,12 +240,14 @@ function VersionEditor({ agentId, agent, versions, selected, initial, onSelect, 
                 <TabsTrigger value="turn">Turn-taking <ErrorDot show={tabHasError('turn', errors)} /></TabsTrigger>
                 <TabsTrigger value="tools">Tools <ErrorDot show={tabHasError('tools', errors)} /></TabsTrigger>
                 <TabsTrigger value="knowledge">Knowledge</TabsTrigger>
+                <TabsTrigger value="privacy">Privacy</TabsTrigger>
               </TabsList>
               <TabsContent keepMounted value="prompt"><PromptTab {...common} /></TabsContent>
               <TabsContent keepMounted value="voice"><VoiceTab {...common} catalog={catalog.data} /></TabsContent>
               <TabsContent keepMounted value="turn"><TurnTab {...common} /></TabsContent>
               <TabsContent keepMounted value="tools"><ToolsTab {...common} onValidity={setValidity} /></TabsContent>
               <TabsContent keepMounted value="knowledge"><KnowledgeTab {...common} /></TabsContent>
+              <TabsContent keepMounted value="privacy"><PrivacyTab {...common} /></TabsContent>
             </Tabs>
           </CardContent>
         </Card>

@@ -17,6 +17,8 @@ const call = (over: Record<string, unknown> = {}) => ({
   turn_count: 2,
   latency_p50_ms: 640,
   transcript_stored: true,
+  remote_number: '+14155550134',
+  remote_number_masked: false,
   ...over,
 })
 const summary = { days: 7, total: 4, completed: 3, failed: 1, avg_duration_s: 40, median_latency_ms: 700 }
@@ -48,10 +50,26 @@ describe('calls', () => {
     renderAt('/calls')
     expect(await screen.findByText('Front desk')).toBeInTheDocument()
     expect(screen.getByText('1m 05s')).toBeInTheDocument()
+    expect(screen.getByText('+14155550134')).toBeInTheDocument()
     expect(screen.getByText('640 ms')).toBeInTheDocument()
     expect(await screen.findByText('700 ms')).toBeInTheDocument()
     await userEvent.setup().click(screen.getByRole('button', { name: /load more/i }))
     await waitFor(() => expect(calls.some((c) => c.path === '/v1/calls' && c.method === 'GET')).toBe(true))
+  })
+
+  it('labels the number by direction and says when it is masked', async () => {
+    mockApi({
+      ...base,
+      'GET /v1/calls/c1': {
+        body: detail({
+          call: call({ source: 'outbound', remote_number: '•••• 0134', remote_number_masked: true }),
+        }),
+      },
+    })
+    renderAt('/calls/c1')
+    expect(await screen.findByText('•••• 0134')).toBeInTheDocument()
+    expect(screen.getByText(/Called:/)).toBeInTheDocument()
+    expect(screen.getByText(/hidden for your role/i)).toBeInTheDocument()
   })
 
   it('shows an empty state', async () => {

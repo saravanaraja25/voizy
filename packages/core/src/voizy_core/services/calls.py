@@ -42,6 +42,7 @@ class CallRow:
     turn_count: int
     latency_p50_ms: int | None
     transcript_stored: bool
+    remote_number: str | None = None
 
 
 @dataclass(frozen=True)
@@ -58,7 +59,8 @@ class TurnRow:
 
 _CALL_COLS = (
     "c.id, c.agent_id, a.name, c.agent_version, c.source, c.room, c.status, c.started_at, "
-    "c.ended_at, c.duration_s, c.end_reason, c.turn_count, c.latency_p50_ms, c.transcript_stored"
+    "c.ended_at, c.duration_s, c.end_reason, c.turn_count, c.latency_p50_ms, c.transcript_stored, "
+    "c.remote_number"
 )
 _CALL_FROM = "FROM calls c JOIN agents a ON a.workspace_id = c.workspace_id AND a.id = c.agent_id"
 
@@ -88,6 +90,19 @@ async def start_call(
     if row is None:
         raise RuntimeError("call insert returned no row")
     return row[0]  # type: ignore[no-any-return]
+
+
+async def set_remote_number(
+    conn: AsyncConnection, workspace_id: uuid.UUID, call_id: uuid.UUID, number: str
+) -> None:
+    async with owned_tx(conn):
+        await set_local(conn, "app.workspace_id", str(workspace_id))
+        await conn.execute("UPDATE calls SET remote_number = %s WHERE id = %s", (number, call_id))
+
+
+def mask_number(number: str | None) -> str | None:
+    """'+14155550134' -> '•••• 0134': enough to tell calls apart, not to call someone back."""
+    return f"•••• {number[-4:]}" if number else None
 
 
 async def add_turn(

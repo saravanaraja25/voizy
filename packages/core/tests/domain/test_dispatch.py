@@ -51,3 +51,16 @@ def test_source_round_trips_and_defaults_to_test() -> None:
     default = parse_dispatch(plain)
     assert "source" not in plain and default is not None and default.source == "test"
     assert parse_dispatch(plain[:-1] + ',"source":"bogus"}') is None
+
+
+def test_remote_number_must_be_e164() -> None:
+    import uuid
+
+    from voizy_core.domain.dispatch import DispatchTarget, encode_dispatch, parse_dispatch
+
+    ws, ag = uuid.uuid4(), uuid.uuid4()
+    good = parse_dispatch(encode_dispatch(DispatchTarget(ws, ag, None, "outbound", "+14155550199")))
+    assert good is not None and good.remote == "+14155550199"
+    base = encode_dispatch(DispatchTarget(ws, ag, None, "outbound"))
+    for bad in ('"4155550199"', '"+0123"', '"+1 415 555 0199"', "5", '"+1415555019900000"'):
+        assert parse_dispatch(base[:-1] + f',"remote":{bad}}}') is None

@@ -32,6 +32,11 @@ class _Turn:
     latency: dict[str, int] | None = None
 
 
+@dataclass(frozen=True)
+class _Remote:
+    number: str
+
+
 class CallRecorder:
     def __init__(
         self,
@@ -48,7 +53,7 @@ class CallRecorder:
         self._ws = workspace_id
         self._agent_id, self._version, self._room = agent_id, version, room
         self._policy, self._source = policy, source
-        self._queue: asyncio.Queue[_Turn | None] = asyncio.Queue(QUEUE_LIMIT)
+        self._queue: asyncio.Queue[_Turn | _Remote | None] = asyncio.Queue(QUEUE_LIMIT)
         self._task: asyncio.Task[None] | None = None
         self._call_id: uuid.UUID | None = None
         self._seq = 0
@@ -56,6 +61,13 @@ class CallRecorder:
 
     def start(self) -> None:
         self._task = asyncio.create_task(self._run())
+
+    def remote_number(self, number: str) -> None:
+        """Record who was on the other end. Never blocks or raises."""
+        try:
+            self._queue.put_nowait(_Remote(number))
+        except asyncio.QueueFull:
+            log.warning("call recorder queue full; dropping the remote number")
 
     def turn(
         self,
@@ -90,7 +102,10 @@ class CallRecorder:
         await self._safely(self._open)
         while (item := await self._queue.get()) is not None:
             if self._call_id is not None:
-                await self._safely(self._write, item)
+                if isinstance(item, _Remote):
+                    await self._safely(self._write_remote, item.number)
+                else:
+                    await self._safely(self._write, item)
 
     async def _safely(self, fn: Callable[..., Awaitable[None]], *args: Any) -> None:
         try:
@@ -109,6 +124,12 @@ class CallRecorder:
                 room=self._room,
                 policy=self._policy,
             )
+
+    async def _write_remote(self, number: str) -> None:
+        if self._call_id is None:
+            return
+        async with self._pool.connection() as conn:
+            await calls.set_remote_number(conn, self._ws, self._call_id, number)
 
     async def _write(self, t: _Turn) -> None:
         if self._call_id is None:

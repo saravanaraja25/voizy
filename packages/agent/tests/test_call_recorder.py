@@ -58,3 +58,22 @@ async def test_database_failure_never_raises(admin_dsn: str) -> None:
     rec.start()
     rec.turn("user", "hello")
     await rec.close()
+
+
+@pytest.mark.asyncio
+async def test_remote_number_is_stored_with_the_call(
+    admin_dsn: str, admin: psycopg.Connection, two_workspaces: tuple[uuid.UUID, uuid.UUID]
+) -> None:
+    a, _ = two_workspaces
+    pool = await open_pool(admin_dsn)
+    try:
+        rec = CallRecorder(
+            pool, a, agent_id=make_agent(admin, a), version=1, room="r2", policy=PolicyConfig()
+        )
+        rec.start()
+        rec.remote_number("+14155550199")
+        rec.turn("agent", "hello")
+        await rec.close()
+    finally:
+        await pool.close()
+    assert admin.execute("SELECT remote_number FROM calls").fetchone() == ("+14155550199",)

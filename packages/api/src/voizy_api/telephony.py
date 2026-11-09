@@ -240,6 +240,19 @@ def outbound_trunk_request(
     )
 
 
+def outbound_dispatch_request(
+    room: str, target: DispatchTarget, to: str
+) -> api.CreateAgentDispatchRequest:
+    """Dispatch the agent into the room; the dialed number rides in server-signed metadata."""
+    return api.CreateAgentDispatchRequest(
+        agent_name=AGENT_WORKER_NAME,
+        room=room,
+        metadata=encode_dispatch(
+            DispatchTarget(target.workspace_id, target.agent_id, None, "outbound", to)
+        ),
+    )
+
+
 class Sip(Protocol):
     async def create_inbound(
         self, e164: str, target: DispatchTarget | None, allowed: tuple[str, ...]
@@ -317,15 +330,7 @@ class LiveKitSip:
     async def dial(self, trunk_id: str, to: str, target: DispatchTarget) -> str:
         room = f"out-{uuid.uuid4().hex[:12]}"
         async with self._lk() as lk:
-            await lk.agent_dispatch.create_dispatch(
-                api.CreateAgentDispatchRequest(
-                    agent_name=AGENT_WORKER_NAME,
-                    room=room,
-                    metadata=encode_dispatch(
-                        DispatchTarget(target.workspace_id, target.agent_id, None, "outbound")
-                    ),
-                )
-            )
+            await lk.agent_dispatch.create_dispatch(outbound_dispatch_request(room, target, to))
             await lk.sip.create_sip_participant(
                 api.CreateSIPParticipantRequest(
                     sip_trunk_id=trunk_id,

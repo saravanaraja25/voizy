@@ -29,6 +29,15 @@ Reader = Annotated[Principal, Depends(require(Permission.CALLS_READ))]
 Deleter = Annotated[Principal, Depends(require(Permission.CALLS_DELETE))]
 
 
+def _out(row: store.CallRow, principal: Principal) -> CallOut:
+    data = asdict(row)
+    reveal = Permission.CALLS_VIEW_PII in principal.permissions
+    data["remote_number_masked"] = bool(row.remote_number) and not reveal
+    if not reveal:
+        data["remote_number"] = store.mask_number(row.remote_number)
+    return CallOut(**data)
+
+
 def _encode(row: store.CallRow) -> str:
     raw = f"{row.started_at.isoformat()}|{row.id}"
     return base64.urlsafe_b64encode(raw.encode()).decode().rstrip("=")
@@ -68,7 +77,7 @@ async def list_calls(
         )
     page = rows[:limit]
     return CallListOut(
-        items=[CallOut(**asdict(r)) for r in page],
+        items=[_out(r, p) for r in page],
         next_cursor=_encode(page[-1]) if len(rows) > limit else None,
     )
 
@@ -92,7 +101,7 @@ async def get_call(request: Request, p: Reader, call_id: uuid.UUID) -> CallDetai
         raise not_found()
     row, turns = found
     return CallDetailOut(
-        call=CallOut(**asdict(row)),
+        call=_out(row, p),
         turns=[TurnOut(**asdict(t)) for t in turns],
         transcript_visible=can_view,
     )

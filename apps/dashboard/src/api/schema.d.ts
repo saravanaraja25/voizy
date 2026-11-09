@@ -743,6 +743,13 @@ export interface components {
             id: string;
             /** Latency P50 Ms */
             latency_p50_ms: number | null;
+            /** Remote Number */
+            remote_number?: string | null;
+            /**
+             * Remote Number Masked
+             * @default false
+             */
+            remote_number_masked: boolean;
             /**
              * Source
              * @enum {string}

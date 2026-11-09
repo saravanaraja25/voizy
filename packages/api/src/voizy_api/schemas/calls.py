@@ -21,6 +21,9 @@ class CallOut(BaseModel):
     turn_count: int
     latency_p50_ms: int | None
     transcript_stored: bool
+    # The other party's number: full with calls:view_pii, otherwise masked ('•••• 0134').
+    remote_number: str | None = None
+    remote_number_masked: bool = False
 
 
 class CallListOut(BaseModel):

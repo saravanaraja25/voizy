@@ -7,6 +7,7 @@ has actually registered, so the model cannot promise an action it has no means t
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from voizy_core.domain.agent_config import SYSTEM_VARIABLES, AgentConfig, render_prompt
@@ -30,17 +31,56 @@ what you are about to look up, and do not repeat the lead-in afterwards.
 up while the caller is still asking or saying something."""
 
 
-def prompt_values(cfg: AgentConfig, *, now: datetime | None = None) -> dict[str, str]:
+@dataclass(frozen=True)
+class CallContext:
+    """What is known about a phone call: which way it went and the other party's number."""
+
+    direction: str  # "inbound" | "outbound"
+    number: str | None = None  # the other party's number, E.164
+
+
+def _last4(number: str) -> str:
+    return number[-4:]
+
+
+def _call_block(call: CallContext) -> str:
+    who = "caller" if call.direction == "inbound" else "person you called"
+    if not call.number:
+        return f"## This call\n- This is an {call.direction} phone call. The number is not known."
+    return (
+        f"## This call\n- This is an {call.direction} phone call. The {who}'s phone number is "
+        f"{call.number} (from the phone network, so it is reliable).\n"
+        "- You already have their number. Whenever a tool or a form needs their phone number, use "
+        "this one, and confirm it by its last four digits only, for example: is it okay to use the "
+        f"number you're on, ending in {_last4(call.number)}? Do not ask them to read out their "
+        "number unless they say to use a different one. Never read the whole number aloud unless "
+        "they ask."
+    )
+
+
+def prompt_values(
+    cfg: AgentConfig, *, now: datetime | None = None, call: CallContext | None = None
+) -> dict[str, str]:
     values = {v.name: v.default or "" for v in cfg.variables}
     values.update({k: "" for k in SYSTEM_VARIABLES})
     values["agent_name"] = cfg.name
     values["current_time"] = (now or datetime.now(UTC)).isoformat(timespec="minutes")
+    if call is not None:
+        values["call_direction"] = call.direction
+        number = call.number or ""
+        # caller_number: who rang us. called_number: who we rang.
+        values["caller_number" if call.direction == "inbound" else "called_number"] = number
     return values
 
 
 def build_instructions(
-    cfg: AgentConfig, tool_names: Sequence[str] = (), *, now: datetime | None = None
+    cfg: AgentConfig,
+    tool_names: Sequence[str] = (),
+    *,
+    now: datetime | None = None,
+    call: CallContext | None = None,
 ) -> str:
-    body = render_prompt(cfg.system_prompt, prompt_values(cfg, now=now)).rstrip()
+    body = render_prompt(cfg.system_prompt, prompt_values(cfg, now=now, call=call)).rstrip()
     tools = ", ".join(sorted(tool_names)) if tool_names else "none"
-    return f"{body}\n\n{_RULES.format(tools=tools)}"
+    context = f"\n\n{_call_block(call)}" if call is not None else ""
+    return f"{body}{context}\n\n{_RULES.format(tools=tools)}"

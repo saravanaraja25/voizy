@@ -550,6 +550,22 @@
             ],
             "title": "Latency P50 Ms"
           },
+          "remote_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remote Number"
+          },
+          "remote_number_masked": {
+            "default": false,
+            "title": "Remote Number Masked",
+            "type": "boolean"
+          },
           "source": {
             "enum": [
               "test",

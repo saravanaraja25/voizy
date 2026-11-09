@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import time
 
 from livekit import agents, rtc
@@ -47,12 +48,13 @@ from voizy_agent.credentials import (
     secret_box_from_env,
 )
 from voizy_agent.http_tool import HttpToolExecutor
-from voizy_agent.instructions import build_instructions
+from voizy_agent.instructions import CallContext, build_instructions
 from voizy_agent.latency import LatencyRecorder
 from voizy_agent.providers import InferenceProviders, WorkspaceProviders, build_pipeline
 from voizy_agent.session_options import get_vad, turn_handling
 from voizy_agent.tools import build_http_tools, tool_names
 
+E164 = re.compile(r"^\+[1-9][0-9]{6,14}$")
 PICKUP_TIMEOUT_S = float(os.environ.get("VOIZY_PICKUP_TIMEOUT_S", "60"))  # outbound ring time
 LOG_TRANSCRIPTS = os.environ.get("VOIZY_LOG_TRANSCRIPTS") == "1"
 TRACE = os.environ.get("VOIZY_TRACE") == "1"  # state-change timeline for latency debugging
@@ -252,23 +254,37 @@ async def entrypoint(ctx: JobContext) -> None:
     ctx.add_shutdown_callback(_log_summary)
     ctx.add_shutdown_callback(_close_history)
 
+    agent = Agent(
+        instructions=build_instructions(cfg, [*tool_names(tools), "end_call"]),
+        tools=agent_tools,
+    )
     await session.start(
-        agent=Agent(
-            instructions=build_instructions(cfg, [*tool_names(tools), "end_call"]),
-            tools=agent_tools,
-        ),
+        agent=agent,
         room=ctx.room,
     )
     if target is not None and target.source != "test":
         # Phone calls: speak only once the other person is on the line (an outbound call may ring
         # for a while, or never be answered).
         try:
-            await asyncio.wait_for(ctx.wait_for_participant(), PICKUP_TIMEOUT_S)
+            who = await asyncio.wait_for(ctx.wait_for_participant(), PICKUP_TIMEOUT_S)
         except TimeoutError:
             if history is not None:
                 await history.close(status="failed", reason="not answered")
             ctx.shutdown(reason="not answered")
             return
+        # Who is on the line: the server names the number it dialed (outbound); for inbound calls
+        # the phone network supplies the caller's number as a SIP attribute.
+        number = target.remote or who.attributes.get("sip.phoneNumber") or None
+        number = number if number and E164.match(number) else None
+        if number and history is not None:
+            history.remote_number(number)
+        await agent.update_instructions(
+            build_instructions(
+                cfg,
+                [*tool_names(tools), "end_call"],
+                call=CallContext(target.source, number),
+            )
+        )
 
     async def _stop_limit() -> None:
         limit.cancel()

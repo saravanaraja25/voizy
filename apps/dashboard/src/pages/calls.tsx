@@ -148,6 +148,7 @@ export function CallsPage() {
                 <TableHead>Started</TableHead>
                 <TableHead>Agent</TableHead>
                 <TableHead>Source</TableHead>
+                <TableHead>Number</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Length</TableHead>
                 <TableHead className="text-right">Response</TableHead>
@@ -165,6 +166,9 @@ export function CallsPage() {
                     {c.agent_name} <span className="text-muted-foreground">v{c.agent_version}</span>
                   </TableCell>
                   <TableCell>{SOURCE_LABEL[c.source] ?? c.source}</TableCell>
+                  <TableCell className="tabular-nums">
+                    {c.remote_number ?? <span className="text-muted-foreground">—</span>}
+                  </TableCell>
                   <TableCell>
                     <StatusBadge status={c.status} />
                   </TableCell>

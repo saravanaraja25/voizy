@@ -160,3 +160,15 @@ def test_outbound_trunk_dials_twilio_termination_over_tcp_with_credentials() -> 
     assert (t.address, t.auth_username, t.auth_password) == ("voizy-a.pstn.twilio.com", "u", "p")
     assert t.transport == api.SIPTransport.SIP_TRANSPORT_TCP
     assert list(t.numbers) == ["+14155550134"]
+
+
+def test_outbound_dispatch_names_the_number_in_signed_metadata() -> None:
+    from voizy_api.telephony import outbound_dispatch_request
+
+    target = DispatchTarget(uuid.uuid4(), uuid.uuid4())
+    req = outbound_dispatch_request("out-1", target, "+14155550199")
+    assert req.room == "out-1" and req.agent_name == "voizy"
+    parsed = parse_dispatch(req.metadata)
+    assert parsed == DispatchTarget(
+        target.workspace_id, target.agent_id, None, "outbound", "+14155550199"
+    )

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import uuid
 from dataclasses import dataclass
 
@@ -10,7 +11,8 @@ from dataclasses import dataclass
 AGENT_WORKER_NAME = "voizy"
 
 _KEYS = {"workspace_id", "agent_id"}
-_OPTIONAL = {"version", "source"}
+_OPTIONAL = {"version", "source", "remote"}
+_E164 = re.compile(r"^\+[1-9][0-9]{6,14}$")
 SOURCES = ("test", "inbound", "outbound")
 
 
@@ -20,6 +22,7 @@ class DispatchTarget:
     agent_id: uuid.UUID
     version: int | None = None  # None = the published version; set for test calls on drafts
     source: str = "test"  # where the call came from: test | inbound | outbound
+    remote: str | None = None  # outbound only: the number being dialed (E.164), set by the server
 
 
 def encode_dispatch(target: DispatchTarget) -> str:
@@ -31,6 +34,8 @@ def encode_dispatch(target: DispatchTarget) -> str:
         data["version"] = target.version
     if target.source != "test":
         data["source"] = target.source
+    if target.remote is not None:
+        data["remote"] = target.remote
     return json.dumps(data, separators=(",", ":"))
 
 
@@ -50,11 +55,15 @@ def parse_dispatch(raw: str | None) -> DispatchTarget | None:
         source = data.get("source", "test")
         if source not in SOURCES:
             return None
+        remote = data.get("remote")
+        if "remote" in data and (not isinstance(remote, str) or not _E164.match(remote)):
+            return None
         return DispatchTarget(
             uuid.UUID(str(data["workspace_id"])),
             uuid.UUID(str(data["agent_id"])),
             version,
             source,
+            remote,
         )
     except (ValueError, TypeError):
         return None

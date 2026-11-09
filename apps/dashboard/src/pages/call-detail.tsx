@@ -135,6 +135,17 @@ export function CallDetailPage() {
             {dateTime.format(new Date(call.started_at))} · {SOURCE_LABEL[call.source] ?? call.source} ·{' '}
             {formatDuration(call.duration_s)}
           </p>
+          {call.remote_number && (
+            <p className="text-sm">
+              <span className="text-muted-foreground">
+                {call.source === 'outbound' ? 'Called' : 'Caller'}:{' '}
+              </span>
+              <span className="font-medium tabular-nums">{call.remote_number}</span>
+              {call.remote_number_masked && (
+                <span className="text-muted-foreground"> (full number hidden for your role)</span>
+              )}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <StatusBadge status={call.status} />

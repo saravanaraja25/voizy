@@ -66,3 +66,26 @@ def test_rules_forbid_inventing_facts() -> None:
     text = build_instructions(make(), now=NOW)
     assert "Only state facts that appear in your instructions or in a tool result" in text
     assert "Never guess or invent details" in text
+
+
+def test_phone_call_context_gives_the_agent_the_number_without_reading_it_out() -> None:
+    from voizy_agent.instructions import CallContext, build_instructions, prompt_values
+
+    cfg = AgentConfig.model_validate(
+        {
+            "name": "A",
+            "system_prompt": "Hi {{caller_number}} {{call_direction}}",
+            "stt": {"provider": "deepgram", "model": "nova-3"},
+            "llm": {"provider": "google", "model": "gemini-2.5-flash"},
+            "tts": {"provider": "cartesia", "model": "sonic-3", "voice_id": "v"},
+        }
+    )
+    inbound = CallContext("inbound", "+14155550134")
+    assert prompt_values(cfg, call=inbound)["caller_number"] == "+14155550134"
+    text = build_instructions(cfg, [], call=inbound)
+    assert "Hi +14155550134 inbound" in text
+    assert "ending in 0134" in text and "Do not ask them to read out their number" in text
+    out = prompt_values(cfg, call=CallContext("outbound", "+14155550199"))
+    assert out["called_number"] == "+14155550199" and out["caller_number"] == ""
+    assert "number is not known" in build_instructions(cfg, [], call=CallContext("inbound", None))
+    assert "## This call" not in build_instructions(cfg, [])  # browser test calls have no number

@@ -135,3 +135,26 @@ async def test_retention_sweep_removes_expired_calls(
     admin.execute("UPDATE calls SET expires_at = now() - interval '1 day'")
     assert await run_once(pool) == (1, 0)
     assert admin.execute("SELECT count(*) FROM calls WHERE id = %s", (cid,)).fetchone() == (0,)
+
+
+async def test_numbers_are_masked_without_view_pii(
+    client: httpx.AsyncClient,
+    pool: AsyncConnectionPool,
+    admin: psycopg.Connection,
+    workspace_a: BootstrapResult,
+    make_key: MakeKey,
+) -> None:
+    (cid,) = await seed(pool, admin, workspace_a.workspace_id)
+    admin.execute("UPDATE calls SET remote_number = '+14155550134'")
+    full = bearer(workspace_a.token)
+    d = (await client.get(f"/v1/calls/{cid}", headers=full)).json()["call"]
+    assert d["remote_number"] == "+14155550134" and d["remote_number_masked"] is False
+
+    reader = bearer(make_key(workspace_a.workspace_id, frozenset({Permission.CALLS_READ})))
+    for path in (f"/v1/calls/{cid}", "/v1/calls"):
+        r = await client.get(path, headers=reader)
+        assert "+14155550134" not in r.text and "5550134" not in r.text
+    masked = (await client.get(f"/v1/calls/{cid}", headers=reader)).json()["call"]
+    assert masked["remote_number"] == "•••• 0134" and masked["remote_number_masked"] is True
+    listed = (await client.get("/v1/calls", headers=reader)).json()["items"][0]
+    assert listed["remote_number"] == "•••• 0134"

@@ -9,7 +9,9 @@ from dataclasses import dataclass
 
 from fastapi import Request
 from livekit import api
+from psycopg_pool import AsyncConnectionPool
 from voizy_core.domain.dispatch import AGENT_WORKER_NAME, DispatchTarget, encode_dispatch
+from voizy_core.security.secretbox import SecretBox
 from voizy_core.services import secrets_store as store
 
 TEST_TOKEN_TTL = dt.timedelta(minutes=10)
@@ -80,13 +82,15 @@ def mint_test_session(settings: LiveKitSettings, target: DispatchTarget) -> Test
     return TestSession(settings.url, token, room, identity, int(TEST_TOKEN_TTL.total_seconds()))
 
 
-async def livekit_for_workspace(
-    request: Request, workspace_id: uuid.UUID
+async def resolve_livekit(
+    pool: AsyncConnectionPool,
+    box: SecretBox | None,
+    env: LiveKitSettings | None,
+    workspace_id: uuid.UUID,
 ) -> LiveKitSettings | None:
     """The workspace's stored LiveKit connection if complete, else the server environment's."""
-    box = request.app.state.settings.secret_box
     if box is not None:
-        async with request.app.state.pool.connection() as conn:
+        async with pool.connection() as conn:
             values = await store.get_integration_values(
                 conn, box, workspace_id, ["livekit_url", "livekit_api_key", "livekit_api_secret"]
             )
@@ -94,5 +98,15 @@ async def livekit_for_workspace(
             return LiveKitSettings(
                 values["livekit_url"], values["livekit_api_key"], values["livekit_api_secret"]
             )
-    configured: LiveKitSettings | None = request.app.state.livekit
-    return configured
+    return env
+
+
+async def livekit_for_workspace(
+    request: Request, workspace_id: uuid.UUID
+) -> LiveKitSettings | None:
+    return await resolve_livekit(
+        request.app.state.pool,
+        request.app.state.settings.secret_box,
+        request.app.state.livekit,
+        workspace_id,
+    )

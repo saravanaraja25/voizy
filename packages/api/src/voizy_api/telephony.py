@@ -46,6 +46,10 @@ class TelephonyError(Exception):
     """Something the operator can act on; the message is shown to them."""
 
 
+class NotConfiguredError(TelephonyError):
+    """Twilio or LiveKit has not been connected in Settings yet."""
+
+
 @dataclass(frozen=True)
 class TwilioCreds:
     account_sid: str
@@ -248,7 +252,9 @@ def outbound_dispatch_request(
         agent_name=AGENT_WORKER_NAME,
         room=room,
         metadata=encode_dispatch(
-            DispatchTarget(target.workspace_id, target.agent_id, None, "outbound", to)
+            DispatchTarget(
+                target.workspace_id, target.agent_id, None, "outbound", to, target.contact
+            )
         ),
     )
 

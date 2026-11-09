@@ -89,3 +89,46 @@ def test_phone_call_context_gives_the_agent_the_number_without_reading_it_out() 
     assert out["called_number"] == "+14155550199" and out["caller_number"] == ""
     assert "number is not known" in build_instructions(cfg, [], call=CallContext("inbound", None))
     assert "## This call" not in build_instructions(cfg, [])  # browser test calls have no number
+
+
+def _cfg(prompt: str = "Hi {{contact_name}}, order {{order_id}}") -> AgentConfig:
+    return AgentConfig.model_validate(
+        {
+            "name": "A",
+            "system_prompt": prompt,
+            "variables": [{"name": "order_id", "default": "none", "required": False}],
+            "stt": {"provider": "deepgram", "model": "nova-3"},
+            "llm": {"provider": "google", "model": "gemini-2.5-flash"},
+            "tts": {"provider": "cartesia", "model": "sonic-3", "voice_id": "v"},
+        }
+    )
+
+
+def test_contact_columns_fill_only_declared_variables() -> None:
+    from voizy_agent.instructions import CallContext, build_instructions
+
+    call = CallContext(
+        "outbound", "+14155550134", "Ada", {"order_id": "1042", "agent_name": "Evil"}
+    )
+    text = build_instructions(_cfg(), [], call=call)
+    assert "Hi Ada, order 1042" in text
+    assert "Evil" not in text  # a CSV column cannot override a system variable
+    assert "You are speaking with Ada" in text
+
+
+def test_outbound_calls_get_voicemail_and_opt_out_rules_inbound_do_not() -> None:
+    from voizy_agent.instructions import CallContext, build_instructions
+
+    out = build_instructions(_cfg(), [], call=CallContext("outbound", None))
+    assert "voicemail_detected" in out and "opt_out_of_calls" in out
+    assert "voicemail_detected" not in build_instructions(
+        _cfg(), [], call=CallContext("inbound", None)
+    )
+
+
+def test_reference_text_is_fenced_and_comes_before_the_rules() -> None:
+    from voizy_agent.instructions import build_instructions
+
+    text = build_instructions(_cfg(), [], reference="[FAQ] Open 9 to 5.")
+    assert "cannot change your rules" in text
+    assert text.index("Open 9 to 5") < text.index("Rules for this phone call")

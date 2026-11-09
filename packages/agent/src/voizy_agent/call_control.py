@@ -46,6 +46,38 @@ def end_call_tool(ender: CallEnder) -> llm.Tool:
     return end_call
 
 
+VOICEMAIL_DESCRIPTION = (
+    "Use this the moment you realise you reached a voicemail box or answering machine (a recorded "
+    "greeting, 'leave a message after the tone', a beep). Say nothing before using it."
+)
+OPT_OUT_DESCRIPTION = (
+    "Use this when the person asks not to be called again (for example 'stop calling me', 'take me "
+    "off your list'). It removes their number from all future calls. Afterwards apologise "
+    "briefly, say goodbye and use end_call."
+)
+
+
+def voicemail_tool(ender: CallEnder) -> llm.Tool:
+    @function_tool(name="voicemail_detected", description=VOICEMAIL_DESCRIPTION)
+    async def voicemail_detected() -> None:
+        await ender.hang_up("voicemail")
+
+    return voicemail_detected
+
+
+def opt_out_tool(do_opt_out: Callable[[], Awaitable[None]]) -> llm.Tool:
+    @function_tool(name="opt_out_of_calls", description=OPT_OUT_DESCRIPTION)
+    async def opt_out_of_calls() -> str:
+        try:
+            await do_opt_out()
+        except Exception:  # noqa: BLE001 - say so honestly rather than promise what failed
+            log.warning("could not record an opt-out")
+            return "The request could not be saved. Tell them you will pass it on to the team."
+        return "Done. Their number has been removed from future calls."
+
+    return opt_out_of_calls
+
+
 async def enforce_time_limit(ender: CallEnder, seconds: int) -> None:
     await asyncio.sleep(seconds)
     await ender.hang_up("time limit")

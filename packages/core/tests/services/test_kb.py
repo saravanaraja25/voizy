@@ -85,7 +85,7 @@ async def test_rejects_bad_input(
         ),
     ):
         with pytest.raises(kb.KbError, match=message):
-            await kb.add_document(app_aconn, a, source_name="", **kwargs)  # type: ignore[arg-type]
+            await kb.add_document(app_aconn, a, source_name="", **kwargs)
 
 
 async def test_prompt_mode_returns_text_only_when_small_enough(

@@ -64,3 +64,18 @@ def test_remote_number_must_be_e164() -> None:
     base = encode_dispatch(DispatchTarget(ws, ag, None, "outbound"))
     for bad in ('"4155550199"', '"+0123"', '"+1 415 555 0199"', "5", '"+1415555019900000"'):
         assert parse_dispatch(base[:-1] + f',"remote":{bad}}}') is None
+
+
+def test_contact_id_round_trips_and_must_be_a_uuid() -> None:
+    import uuid
+
+    from voizy_core.domain.dispatch import DispatchTarget, encode_dispatch, parse_dispatch
+
+    ws, ag, ct = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
+    parsed = parse_dispatch(
+        encode_dispatch(DispatchTarget(ws, ag, None, "outbound", "+14155550199", ct))
+    )
+    assert parsed is not None and parsed.contact == ct
+    base = encode_dispatch(DispatchTarget(ws, ag, None, "outbound"))
+    for bad in ('"nope"', "5", "null", '"1234"'):
+        assert parse_dispatch(base[:-1] + f',"contact":{bad}}}') is None

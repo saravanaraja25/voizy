@@ -48,11 +48,14 @@ class CallRecorder:
         room: str,
         policy: PolicyConfig,
         source: calls.Source = "test",
+        campaign_id: uuid.UUID | None = None,
+        contact_id: uuid.UUID | None = None,
     ) -> None:
         self._pool = pool
         self._ws = workspace_id
         self._agent_id, self._version, self._room = agent_id, version, room
         self._policy, self._source = policy, source
+        self._campaign_id, self._contact_id = campaign_id, contact_id
         self._queue: asyncio.Queue[_Turn | _Remote | None] = asyncio.Queue(QUEUE_LIMIT)
         self._task: asyncio.Task[None] | None = None
         self._call_id: uuid.UUID | None = None
@@ -123,6 +126,8 @@ class CallRecorder:
                 source=self._source,
                 room=self._room,
                 policy=self._policy,
+                campaign_id=self._campaign_id,
+                contact_id=self._contact_id,
             )
 
     async def _write_remote(self, number: str) -> None:

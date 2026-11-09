@@ -51,7 +51,8 @@ CREATE TABLE campaign_contacts (
   claimed_at timestamptz,
   last_outcome text,
   last_error text NOT NULL DEFAULT '' CHECK (length(last_error) <= 200),
-  created_at timestamptz NOT NULL DEFAULT now(),
+  -- clock_timestamp, not now(): rows imported in one transaction must keep their file order.
+  created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
   PRIMARY KEY (workspace_id, id),
   UNIQUE (workspace_id, campaign_id, e164),
   FOREIGN KEY (workspace_id, campaign_id) REFERENCES campaigns ON DELETE CASCADE

@@ -8,6 +8,7 @@ import logging
 import os
 import re
 import time
+import uuid
 
 from livekit import agents, rtc
 from livekit.agents import (
@@ -27,12 +28,15 @@ from voizy_core.db.pool import open_pool
 from voizy_core.domain.agent_config import AgentConfig, TurnConfig
 from voizy_core.domain.dispatch import AGENT_WORKER_NAME, DispatchTarget, parse_dispatch
 from voizy_core.security.ssrf import STRICT, SsrfPolicy
+from voizy_core.services import campaigns
 
 from voizy_agent.call_control import (
     CallEnder,
     SilenceGuard,
     end_call_tool,
     enforce_time_limit,
+    opt_out_tool,
+    voicemail_tool,
 )
 from voizy_agent.call_recorder import CallRecorder
 from voizy_agent.config_source import (
@@ -49,6 +53,7 @@ from voizy_agent.credentials import (
 )
 from voizy_agent.http_tool import HttpToolExecutor
 from voizy_agent.instructions import CallContext, build_instructions
+from voizy_agent.knowledge import Knowledge, KnowledgeAgent, search_tool
 from voizy_agent.latency import LatencyRecorder
 from voizy_agent.providers import InferenceProviders, WorkspaceProviders, build_pipeline
 from voizy_agent.session_options import get_vad, turn_handling
@@ -128,6 +133,58 @@ async def entrypoint(ctx: JobContext) -> None:
     tools = build_http_tools(cfg, HttpToolExecutor(_tool_policy()), resolver)
     ender = CallEnder(ctx.delete_room)
     agent_tools: list[llm.Tool | llm.Toolset] = [*tools, end_call_tool(ender)]
+    extra_names = ["end_call"]
+    campaign_id: uuid.UUID | None = None
+    contact_name = ""
+    contact_vars: dict[str, str] = {}
+    if target is not None and target.contact is not None:
+        async with (await _pool_for()).connection() as conn:
+            found = await campaigns.contact_context(conn, target.workspace_id, target.contact)
+        if found is not None:
+            campaign_id, contact_name, contact_vars = found
+    if target is not None and target.source == "outbound":
+        agent_tools.append(voicemail_tool(ender))
+        extra_names.append("voicemail_detected")
+        if target.remote:
+            number_to_remove, who_contact = target.remote, target.contact
+
+            async def _opt_out() -> None:
+                async with (await _pool_for()).connection() as conn:
+                    await campaigns.opt_out(
+                        conn, target.workspace_id, number_to_remove, who_contact
+                    )
+
+            agent_tools.append(opt_out_tool(_opt_out))
+            extra_names.append("opt_out_of_calls")
+    knowledge: Knowledge | None = None
+    reference: str | None = None
+    if workspace_id is not None and cfg.retrieval.enabled:
+        knowledge = Knowledge(
+            await _pool_for(), workspace_id, cfg.retrieval.collection, cfg.retrieval.top_k
+        )
+        mode = cfg.retrieval.mode
+        if mode == "prompt":
+            reference = await knowledge.whole_collection()
+            if reference is None:  # too big for the prompt: search per turn instead
+                log.warning("knowledge collection too large for prompt mode; using prefetch")
+                mode = "prefetch"
+        if mode == "tool":
+            agent_tools.append(search_tool(knowledge))
+            extra_names.append("search_knowledge")
+        use_prefetch = mode == "prefetch"
+    else:
+        use_prefetch = False
+
+    def instructions_for(call: CallContext | None) -> str:
+        return build_instructions(
+            cfg, [*tool_names(tools), *extra_names], call=call, reference=reference
+        )
+
+    def phone_context(number: str | None) -> CallContext | None:
+        if target is None or target.source == "test":
+            return None
+        return CallContext(target.source, number, contact_name, contact_vars)
+
     inference_providers = (
         InferenceProviders(livekit.api_key, livekit.api_secret) if livekit else InferenceProviders()
     )
@@ -147,6 +204,8 @@ async def entrypoint(ctx: JobContext) -> None:
             room=ctx.room.name,
             policy=cfg.policy,
             source=target.source,  # type: ignore[arg-type]
+            campaign_id=campaign_id,
+            contact_id=target.contact,
         )
         history.start()
 
@@ -254,9 +313,11 @@ async def entrypoint(ctx: JobContext) -> None:
     ctx.add_shutdown_callback(_log_summary)
     ctx.add_shutdown_callback(_close_history)
 
-    agent = Agent(
-        instructions=build_instructions(cfg, [*tool_names(tools), "end_call"]),
-        tools=agent_tools,
+    initial = instructions_for(phone_context(target.remote if target else None))
+    agent: Agent = (
+        KnowledgeAgent(knowledge=knowledge, instructions=initial, tools=agent_tools)
+        if use_prefetch and knowledge is not None
+        else Agent(instructions=initial, tools=agent_tools)
     )
     await session.start(
         agent=agent,
@@ -278,13 +339,7 @@ async def entrypoint(ctx: JobContext) -> None:
         number = number if number and E164.match(number) else None
         if number and history is not None:
             history.remote_number(number)
-        await agent.update_instructions(
-            build_instructions(
-                cfg,
-                [*tool_names(tools), "end_call"],
-                call=CallContext(target.source, number),
-            )
-        )
+        await agent.update_instructions(instructions_for(phone_context(number)))
 
     async def _stop_limit() -> None:
         limit.cancel()

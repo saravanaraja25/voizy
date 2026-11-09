@@ -16,7 +16,14 @@ LOOPBACK_HOSTS: frozenset[str] = frozenset({"localhost", "127.0.0.1", "[::1]"})
 
 # Variables the runtime always provides to prompts.
 SYSTEM_VARIABLES: frozenset[str] = frozenset(
-    {"agent_name", "current_time", "caller_number", "called_number", "call_direction"}
+    {
+        "agent_name",
+        "current_time",
+        "caller_number",
+        "called_number",
+        "call_direction",
+        "contact_name",
+    }
 )
 
 
@@ -169,8 +176,15 @@ Tool = Annotated[BuiltinTool | HttpTool, Field(discriminator="kind")]
 
 
 class RetrievalConfig(_Strict):
-    """How knowledge reaches the model. prefetch avoids an extra LLM round trip."""
+    """How knowledge reaches the model.
 
+    prefetch: search on every caller turn and add the best passages before the model replies (no
+    extra model round trip). tool: the model decides when to search. prompt: the whole collection
+    goes into the instructions at call start (small collections only).
+    """
+
+    enabled: bool = False
+    collection: str = Field(default="default", pattern=r"^[a-z0-9][a-z0-9_-]{0,39}$")
     mode: Literal["prompt", "prefetch", "tool"] = "prefetch"
     top_k: int = Field(default=3, ge=1, le=10)
 

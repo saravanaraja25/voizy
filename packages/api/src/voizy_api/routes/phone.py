@@ -12,11 +12,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from voizy_core.db.pool import workspace_tx
 from voizy_core.domain.dispatch import DispatchTarget
 from voizy_core.domain.permissions import Permission
-from voizy_core.services import secrets_store as store
 from voizy_core.services import telephony as numbers
 from voizy_core.services.auth import Principal
 
-from voizy_api.livekit import livekit_for_workspace
 from voizy_api.schemas.phone import (
     OutboundCall,
     OutboundCallOut,
@@ -25,12 +23,8 @@ from voizy_api.schemas.phone import (
     PhoneNumberUpdate,
 )
 from voizy_api.settings import Settings
-from voizy_api.telephony import (
-    Telephony,
-    TelephonyError,
-    TwilioCreds,
-    new_sip_credentials,
-)
+from voizy_api.telephony import Telephony, TelephonyError, new_sip_credentials
+from voizy_api.telephony_access import telephony_for
 from voizy_api.web.auth import require
 from voizy_api.web.common import audit, not_found
 
@@ -39,7 +33,6 @@ router = APIRouter(prefix="/v1", tags=["phone"])
 Reader = Annotated[Principal, Depends(require(Permission.NUMBERS_READ))]
 Manager = Annotated[Principal, Depends(require(Permission.NUMBERS_MANAGE))]
 Dialer = Annotated[Principal, Depends(require(Permission.CALLS_PLACE_OUTBOUND))]
-TWILIO_FIELDS = ("twilio_account_sid", "twilio_auth_token")
 
 
 def _out(n: numbers.PhoneNumber) -> PhoneNumberOut:
@@ -59,22 +52,11 @@ async def _telephony(request: Request, p: Principal) -> Telephony:
         raise HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE, "Secret storage is not configured on the server."
         )
-    async with request.app.state.pool.connection() as conn:
-        values = await store.get_integration_values(
-            conn, settings.secret_box, p.workspace_id, TWILIO_FIELDS
-        )
-    if len(values) != len(TWILIO_FIELDS):
-        raise HTTPException(
-            status.HTTP_409_CONFLICT, "Connect your Twilio account in Settings first."
-        )
-    lk = await livekit_for_workspace(request, p.workspace_id)
-    if lk is None:
-        raise HTTPException(status.HTTP_409_CONFLICT, "Connect LiveKit in Settings first.")
     try:
-        return settings.telephony(
-            lk, TwilioCreds(values[TWILIO_FIELDS[0]], values[TWILIO_FIELDS[1]])
+        return await telephony_for(
+            request.app.state.pool, settings, request.app.state.livekit, p.workspace_id
         )
-    except TelephonyError as exc:
+    except TelephonyError as exc:  # not connected yet, or the SIP host cannot be worked out
         raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
 
 

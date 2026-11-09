@@ -74,7 +74,7 @@ Runs everything: Postgres, migrations, API, voice worker and dashboard.
 
 1. **Get the code and make your config**
    ```sh
-   git clone <this repository's URL> voizy && cd voizy
+   git clone https://github.com/saravanaraja25/voizy.git && cd voizy
    cp .env.example .env
    ```
 2. **Fill in `.env`** (it is git-ignored). Generate strong values:

@@ -25,15 +25,29 @@ def _status_code(error: object) -> int | None:
     return None
 
 
+def _mentions_quota(error: object) -> bool:
+    """Whether the provider said its credits or quota are used up (classified, never echoed)."""
+    inner = getattr(error, "error", error)
+    text = f"{inner} {error}".lower()
+    return "quota" in text or "credit" in text
+
+
 def describe_failure(error: object) -> Failure:
     code = _status_code(error)
+    if code == 429 and _mentions_quota(error):
+        return Failure(
+            "provider error (429, credits used up)",
+            "LiveKit reports that the credits included in your plan for a speech, language or "
+            "voice service are used up (quota exceeded). Use your own provider keys (Settings, "
+            "then Connect via in the agent's Voice & models tab), upgrade the plan, or wait for "
+            "the credits to reset.",
+        )
     if code == 429:
         return Failure(
             "provider error (429)",
-            "A speech, language or voice service refused the request as too many (429). On "
-            "LiveKit's free plan this usually means the included Inference allowance is used up. "
-            "Use your own provider keys (Settings, then Connect via in the agent's Voice & models "
-            "tab) or upgrade the plan.",
+            "A speech, language or voice service refused the request as too many (429): a rate or "
+            "concurrency limit. Wait a moment and try again; on LiveKit's free plan check "
+            "Settings, then Usage and limits in the LiveKit dashboard.",
         )
     if code in (401, 403):
         return Failure(

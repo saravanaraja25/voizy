@@ -85,7 +85,9 @@ By default each agent's speech recognition, language model and voice run through
 which uses your LiveKit plan's allowance. LiveKit's current
 [quotas and limits](https://docs.livekit.io/deploy/admin/quotas-and-limits/) list, for the free **Build**
 plan, a small Inference allowance (about $2.50 when this was written) and say Build's allowances are
-**hard caps**: when they run out, requests fail until the next period or until you upgrade. That is
+**hard caps**: when they run out, requests fail (HTTP 429, "credit quota exceeded") until the next period or
+until you upgrade. In testing, the language-model credits ran out after a day of heavy test calls, while the
+Billing page still listed $0.00 for everything and no "remaining" figure. That is
 plenty for trying things out, not for heavy use.
 
 **Concurrency limits on the free plan.** LiveKit's console (project **Settings → Usage and limits**) shows
@@ -93,8 +95,8 @@ the fixed limits and your peak usage over the past 7 days. When this was written
 allowed about **5 concurrent agent sessions**, **5 concurrent Twilio participants**, **5 concurrent
 connections per speech-recognition and voice model**, and about **100 requests per minute per language
 model**. In practice that is roughly five calls at once; a sixth fails. Keep **Calls at the same time**
-on a campaign at **5 or less** on the free plan. Check that page first when calls start failing: it shows
-which limit you are near.
+on a campaign at **5 or less** on the free plan. Check that page when calls fail with "too many requests": it shows
+which limit you are near. If the message says credits are used up, see the next paragraph.
 
 Your options when you outgrow it: upgrade the LiveKit plan, or give an agent **your own provider keys**
 so those components skip Inference: save a Deepgram, OpenAI, Google AI or Cartesia key in
@@ -181,7 +183,7 @@ Afterwards open **Calls** to see the transcript, tools used, and the other party
 |---|---|
 | Settings → LiveKit "Test connection" fails | Check the URL starts with `wss://` and has no trailing path, and that the key and secret belong to the same project. Create a new key and try again. |
 | Browser call connects but the agent never speaks | The voice worker isn't running or isn't connected: `docker compose logs agent`. After saving LiveKit keys it should log that it registered a worker. Also make sure no other worker (another machine, a dev setup) is registered on the same project with the same name; set `VOIZY_AGENT_NAME` to tell them apart. |
-| The test console says a speech, language or voice service refused the request (429), or the agent stops speaking | You have hit a LiveKit free-plan limit: the included Inference allowance (see **Billing**), or too many concurrent calls or requests (see **Settings → Usage and limits**). The call is recorded as *failed, provider error (429)*. Use your own provider keys (see 1.4) or upgrade. This happens after a lot of test calls on the free plan. |
+| The test console says LiveKit's credits are used up (429), or a service refused the request as too many | **Credits used up:** the free plan's included Inference credits ran out; the worker log says "credit quota exceeded". LiveKit's Billing page lists what you used but does not show what remains, so this message is the reliable signal. It happens after a lot of test calls. Use your own provider keys (see 1.4), upgrade, or wait for the reset. **Too many requests:** a rate or concurrency limit; wait a moment and check **Settings → Usage and limits**. |
 | Microphone doesn't work | Use `http://localhost`, or HTTPS. Allow the microphone for the site. Use headphones. |
 | Connecting a number fails with a Twilio message | Read the message: wrong SID/token, number not in this Twilio account, or the account must be upgraded for SIP trunking (see 2.2). Nothing is left half-created. |
 | Outbound call fails or never rings | Is the destination verified (trial)? Is its country enabled in Geo permissions (2.3)? Is the agent published? Look for Twilio errors 32100 or 32205 in the Twilio Console debugger. |

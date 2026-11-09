@@ -12,7 +12,14 @@ from voizy_agent.failures import describe_failure
         (
             SimpleNamespace(error=SimpleNamespace(status_code=429)),
             "provider error (429)",
-            "allowance",
+            "rate or concurrency",
+        ),
+        (
+            SimpleNamespace(
+                error=SimpleNamespace(status_code=429), message="LLM token credit quota exceeded"
+            ),
+            "provider error (429, credits used up)",
+            "credits",
         ),
         (
             SimpleNamespace(error=SimpleNamespace(status_code=401)),
@@ -32,4 +39,8 @@ def test_failures_say_what_to_do(error: object, reason: str, needle: str) -> Non
 def test_the_message_never_echoes_provider_error_text() -> None:
     secret = "sk-this-should-never-appear"  # noqa: S105 - a marker string, not a credential
     f = describe_failure(SimpleNamespace(error=RuntimeError(f"bad key {secret}")))
+    assert secret not in f.message and secret not in f.reason
+    f = describe_failure(
+        SimpleNamespace(status_code=429, error=RuntimeError(f"quota exceeded {secret}"))
+    )
     assert secret not in f.message and secret not in f.reason

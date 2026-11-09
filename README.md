@@ -102,7 +102,8 @@ flowchart LR
   supplies phone numbers and the phone network.
 
 Call flows, the data model, worker internals, design trade-offs and how to extend each part:
-**[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
+**[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**. The database schema is in
+**[docs/schema.dbml](docs/schema.dbml)** (paste it into [dbdiagram.io](https://dbdiagram.io) for a diagram).
 
 ## Quick start (Docker)
 
@@ -353,9 +354,9 @@ apps/dashboard      React 19 + TypeScript + Vite + Tailwind v4 + shadcn/ui (Base
 packages/core       voizy_core: domain/ (config, permissions, dispatch) · security/ · db/ (pool, migrations) · services/
 packages/api        voizy_api: routes/ · schemas/ · web/ (auth, CSRF, middleware) · telephony · campaign + retention loops
 packages/agent      voizy_agent: the generic LiveKit voice worker, tools, knowledge, call control, recorder, devtools/
-docs/               GETTING-STARTED · ARCHITECTURE · SECURITY · TELEPHONY · KNOWLEDGE · CAMPAIGNS · LATENCY
+docs/               GETTING-STARTED · ARCHITECTURE · schema.dbml · SECURITY · TELEPHONY · KNOWLEDGE · CAMPAIGNS · LATENCY
 dev/                example agents and a terminal runner
-scripts/            export_openapi.py, latency_report.py
+scripts/            export_openapi.py, export_dbml.py, latency_report.py
 docker/             Postgres init (the app's login role)
 Dockerfile          targets: api, agent        docker-compose.yml: the whole stack
 SCOPE.md            the product scope and build order

@@ -1,0 +1,198 @@
+"""Export the database schema as DBML (paste it into https://dbdiagram.io to see the diagram).
+
+    VOIZY_ADMIN_DATABASE_URL=postgresql://... uv run python scripts/export_dbml.py docs/schema.dbml
+
+Reads the live catalog of a database that has had `voizy-admin migrate` run on it, so the output is
+what the migrations actually produce. Regenerate it whenever you add a migration.
+"""
+
+from __future__ import annotations
+
+import os
+import sys
+from collections import defaultdict
+from pathlib import Path
+from typing import Any
+
+import psycopg
+
+GROUPS: dict[str, list[str]] = {
+    "tenancy_and_access": [
+        "workspaces",
+        "users",
+        "memberships",
+        "roles",
+        "role_permissions",
+        "api_keys",
+        "sessions",
+        "invites",
+        "instance_settings",
+        "audit_log",
+    ],
+    "agents": ["agents", "agent_versions"],
+    "secrets": ["secrets"],
+    "calls": ["calls", "call_turns"],
+    "telephony": ["telephony_trunks", "phone_numbers"],
+    "knowledge": ["kb_documents", "kb_chunks"],
+    "campaigns": ["campaigns", "campaign_contacts", "dnc_numbers"],
+}
+TYPE_NAMES = {
+    "timestamp with time zone": "timestamptz",
+    "timestamp without time zone": "timestamp",
+    "time without time zone": "time",
+    "integer": "int",
+    "character varying": "varchar",
+    "double precision": "float",
+}
+ON_DELETE = {
+    "c": "cascade",
+    "n": "set null",
+    "r": "restrict",
+    "d": "set default",
+}  # 'a' = no action
+
+
+def q(text: str) -> str:
+    """A DBML single-quoted string."""
+    return "'" + text.replace("\\", "\\\\").replace("'", "\\'") + "'"
+
+
+def main(out: Path) -> int:
+    dsn = os.environ.get("VOIZY_ADMIN_DATABASE_URL")
+    if not dsn:
+        print("Set VOIZY_ADMIN_DATABASE_URL to a migrated database.", file=sys.stderr)
+        return 2
+    with psycopg.connect(dsn) as conn:
+        tables = [
+            r[0]
+            for r in conn.execute(
+                "SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename"
+            )
+        ]
+        rls = {
+            r[0]: (r[1], r[2])
+            for r in conn.execute(
+                "SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class "
+                "WHERE relnamespace = 'public'::regnamespace AND relkind = 'r'"
+            )
+        }
+        cols: dict[str, list[tuple[Any, ...]]] = defaultdict(list)
+        for r in conn.execute(
+            "SELECT table_name, column_name, data_type, udt_name, is_nullable, column_default, "
+            "is_generated, generation_expression FROM information_schema.columns "
+            "WHERE table_schema = 'public' ORDER BY table_name, ordinal_position"
+        ):
+            cols[r[0]].append(r)
+        pk: dict[str, list[str]] = {}
+        for t, attrs in conn.execute(
+            "SELECT c.conrelid::regclass::text, array(SELECT a.attname FROM unnest(c.conkey) "
+            "WITH ORDINALITY k(n, o) JOIN pg_attribute a "
+            "ON a.attrelid = c.conrelid AND a.attnum = k.n ORDER BY k.o) "
+            "FROM pg_constraint c "
+            "WHERE c.contype = 'p' AND c.connamespace = 'public'::regnamespace"
+        ):
+            pk[t] = attrs
+        fks = conn.execute(
+            "SELECT c.conrelid::regclass::text, c.confrelid::regclass::text, "
+            "array(SELECT a.attname FROM unnest(c.conkey) WITH ORDINALITY k(n, o) "
+            "JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = k.n ORDER BY k.o), "
+            "array(SELECT a.attname FROM unnest(c.confkey) WITH ORDINALITY k(n, o) "
+            "JOIN pg_attribute a ON a.attrelid = c.confrelid AND a.attnum = k.n ORDER BY k.o), "
+            "c.confdeltype FROM pg_constraint c "
+            "WHERE c.contype = 'f' AND c.connamespace = 'public'::regnamespace ORDER BY 1, 2, 3"
+        ).fetchall()
+        checks: dict[str, list[str]] = defaultdict(list)
+        for t, d in conn.execute(
+            "SELECT conrelid::regclass::text, pg_get_constraintdef(oid) FROM pg_constraint "
+            "WHERE contype = 'c' AND connamespace = 'public'::regnamespace ORDER BY 1, conname"
+        ):
+            checks[t].append(d.removeprefix("CHECK "))
+        indexes: dict[str, list[tuple[Any, ...]]] = defaultdict(list)
+        for r in conn.execute(
+            "SELECT t.relname, i.relname, ix.indisunique, am.amname, "
+            "pg_get_expr(ix.indpred, ix.indrelid), "
+            "array(SELECT pg_get_indexdef(ix.indexrelid, k + 1, true) "
+            "FROM generate_series(0, ix.indnkeyatts - 1) k) "
+            "FROM pg_index ix JOIN pg_class t ON t.oid = ix.indrelid "
+            "JOIN pg_class i ON i.oid = ix.indexrelid JOIN pg_am am ON am.oid = i.relam "
+            "WHERE t.relnamespace = 'public'::regnamespace AND NOT ix.indisprimary "
+            "ORDER BY t.relname, i.relname"
+        ):
+            indexes[r[0]].append(r)
+
+    lines = [
+        "// Voizy database schema, generated by scripts/export_dbml.py from the migrations.",
+        "// Paste into https://dbdiagram.io (Import -> DBML) to see the diagram.",
+        "// Every tenant table has a workspace_id and row-level security that is enabled AND",
+        "// forced; composite foreign keys (workspace_id, id) keep tenants apart.",
+        "",
+        "Project voizy {",
+        "  database_type: 'PostgreSQL'",
+        "  Note: 'Open-source platform for configurable AI voice agents.'",
+        "}",
+        "",
+    ]
+    for table in tables:
+        lines.append(f"Table {table} {{")
+        single_pk = pk.get(table, [])
+        for _, name, data_type, udt, nullable, default, gen, gen_expr in cols[table]:
+            typ = f"{udt[1:]}[]" if data_type == "ARRAY" else TYPE_NAMES.get(data_type, data_type)
+            settings = []
+            if len(single_pk) == 1 and single_pk[0] == name:
+                settings.append("pk")
+            if nullable == "NO":
+                settings.append("not null")
+            if gen == "ALWAYS" and gen_expr:
+                settings.append(f"note: {q('generated: ' + gen_expr)}")
+            elif default is not None:
+                settings.append(f"default: `{default}`")
+            lines.append(f"  {name} {typ}" + (f" [{', '.join(settings)}]" if settings else ""))
+        idx = []
+        if len(single_pk) > 1:
+            idx.append(f"    ({', '.join(single_pk)}) [pk]")
+        for _, iname, unique, method, pred, ixcols in indexes[table]:
+            # An expression such as lower(email) must be written in backticks in DBML.
+            keys = ", ".join(c if c.isidentifier() else f"`{c}`" for c in ixcols)
+            target = f"({keys})" if len(ixcols) > 1 else keys
+            opts = [f"name: {q(iname)}"]
+            if unique:
+                opts.append("unique")
+            if method != "btree":
+                opts.append(f"type: {method}")
+            if pred:
+                opts.append(f"note: {q('partial index where ' + pred)}")
+            idx.append(f"    {target} [{', '.join(opts)}]")
+        if idx:
+            lines += ["", "  indexes {", *idx, "  }"]
+        rls_on, rls_forced = rls.get(table, (False, False))
+        notes = []
+        if rls_on:
+            notes.append("Row-level security: enabled" + (" and forced." if rls_forced else "."))
+        if checks[table]:
+            notes.append("Checks:")
+            notes += [f"- {c}" for c in checks[table]]
+        if notes:
+            body = "\\n".join(n.replace("\\", "\\\\").replace("'", "\\'") for n in notes)
+            lines += ["", f"  Note: '{body}'"]
+        lines += ["}", ""]
+    for src, dst, scols, dcols, action in fks:
+        s = f"{src}.{scols[0]}" if len(scols) == 1 else f"{src}.({', '.join(scols)})"
+        d = f"{dst}.{dcols[0]}" if len(dcols) == 1 else f"{dst}.({', '.join(dcols)})"
+        opt = f" [delete: {ON_DELETE[action]}]" if action in ON_DELETE else ""
+        lines.append(f"Ref: {s} > {d}{opt}")
+    lines.append("")
+    placed = {t for ts in GROUPS.values() for t in ts}
+    for group, members in GROUPS.items():
+        present = [t for t in members if t in tables]
+        if present:
+            lines += [f"TableGroup {group} {{", *[f"  {t}" for t in present], "}", ""]
+    rest = [t for t in tables if t not in placed]
+    if rest:
+        lines += ["TableGroup other {", *[f"  {t}" for t in rest], "}", ""]
+    out.write_text("\n".join(lines))
+    print(f"wrote {out} ({len(tables)} tables, {len(fks)} references)")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(Path(sys.argv[1] if len(sys.argv) > 1 else "schema.dbml")))

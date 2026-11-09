@@ -146,6 +146,15 @@ composite foreign keys `(workspace_id, id)` so one tenant cannot reference anoth
 Migrations are plain SQL in `packages/core/src/voizy_core/db/migrations/`, applied in order by
 `voizy-admin migrate`.
 
+**Schema diagram:** [`schema.dbml`](schema.dbml) is the full schema (columns, keys, indexes, checks,
+row-level-security flags). Paste it into [dbdiagram.io](https://dbdiagram.io) (*Import → DBML*) for an
+interactive diagram. It is generated from the migrated database, not written by hand; regenerate it
+after adding a migration:
+
+```sh
+VOIZY_ADMIN_DATABASE_URL=postgresql://... uv run python scripts/export_dbml.py docs/schema.dbml
+```
+
 ### Tenant isolation
 
 - The app connects as an unprivileged role that is a member of `voizy_app`, which cannot bypass RLS.

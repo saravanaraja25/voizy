@@ -74,6 +74,8 @@ async def start_call(
     source: Source,
     room: str,
     policy: PolicyConfig,
+    campaign_id: uuid.UUID | None = None,
+    contact_id: uuid.UUID | None = None,
 ) -> uuid.UUID:
     keep_transcript = policy.save_transcripts and policy.retention_days > 0
     days = policy.retention_days if policy.retention_days > 0 else METADATA_RETENTION_DAYS
@@ -81,10 +83,20 @@ async def start_call(
         await set_local(conn, "app.workspace_id", str(workspace_id))
         cur = await conn.execute(
             "INSERT INTO calls (workspace_id, agent_id, agent_version, source, room, "
-            "transcript_stored, expires_at) "
-            "VALUES (%s, %s, %s, %s, %s, %s, now() + %s * interval '1 day') "
+            "transcript_stored, expires_at, campaign_id, contact_id) "
+            "VALUES (%s, %s, %s, %s, %s, %s, now() + %s * interval '1 day', %s, %s) "
             "RETURNING id",
-            (workspace_id, agent_id, version, source, room[:200], keep_transcript, days),
+            (
+                workspace_id,
+                agent_id,
+                version,
+                source,
+                room[:200],
+                keep_transcript,
+                days,
+                campaign_id,
+                contact_id,
+            ),
         )
         row = await cur.fetchone()
     if row is None:

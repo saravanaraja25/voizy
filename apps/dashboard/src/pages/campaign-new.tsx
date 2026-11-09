@@ -9,7 +9,7 @@ import type { CsvPreview } from '@/api/types'
 import { useAuth } from '@/auth/AuthContext'
 import { Field } from '@/components/field'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -198,7 +198,7 @@ export function CampaignNewPage() {
               <AlertDescription className="grid gap-2">
                 {preview.rejected.length > 0 && (
                   <p>
-                    {preview.rejected.length} rows skipped:{' '}
+                    {preview.rejected.length} {preview.rejected.length === 1 ? 'row' : 'rows'} skipped:{' '}
                     {preview.rejected.slice(0, 5).map(([line, why]) => `line ${line} (${why})`).join('; ')}
                     {preview.rejected.length > 5 ? '…' : ''}
                   </p>
@@ -233,7 +233,7 @@ export function CampaignNewPage() {
           {create.isPending && <Loader2 className="animate-spin" />}
           Create campaign
         </Button>
-        <Button type="button" variant="outline" render={<Link to="/campaigns" />}>Cancel</Button>
+        <Link to="/campaigns" className={buttonVariants({ variant: 'outline' })}>Cancel</Link>
       </div>
       <p className="text-muted-foreground text-xs">It is created as a draft. Nothing is called until you press Start.</p>
     </form>

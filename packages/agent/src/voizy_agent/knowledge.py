@@ -99,5 +99,6 @@ class KnowledgeAgent(Agent):
         if not worth_searching(text):
             return
         hits = await self._knowledge.search(text)
+        log.info("knowledge prefetch: %d passages", len(hits))  # counts only, never content
         if hits:
             turn_ctx.add_message(role="assistant", content=format_hits(hits))

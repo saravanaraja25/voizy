@@ -10,7 +10,7 @@ import { useAuth } from '@/auth/AuthContext'
 import { Field } from '@/components/field'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -143,9 +143,9 @@ export function CampaignsPage() {
           </p>
         </div>
         {can('campaigns:create') && (
-          <Button render={<Link to="/campaigns/new" />}>
+          <Link to="/campaigns/new" className={buttonVariants()}>
             <Plus /> New campaign
-          </Button>
+          </Link>
         )}
       </div>
       <Tabs defaultValue="campaigns">

@@ -118,7 +118,7 @@ function AddDocumentDialog({ collections }: { collections: string[] }) {
               ))}
             </datalist>
           </Field>
-          <Field label="Text" htmlFor="kb-content">
+          <Field label="Document text" htmlFor="kb-content">
             <Textarea id="kb-content" value={content} onChange={(e) => setContent(e.target.value)} rows={8} className="font-mono text-xs" required />
           </Field>
           <DialogFooter>

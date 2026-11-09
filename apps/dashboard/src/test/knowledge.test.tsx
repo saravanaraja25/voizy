@@ -49,7 +49,7 @@ describe('knowledge page', () => {
     await user.click(await screen.findByRole('button', { name: /add document/i }))
     const dialog = await screen.findByRole('dialog')
     await user.type(within(dialog).getByLabelText('Title'), 'Returns policy')
-    await user.type(within(dialog).getByLabelText('Text'), '# Returns{enter}{enter}Within 30 days.')
+    await user.type(within(dialog).getByLabelText('Document text'), '# Returns{enter}{enter}Within 30 days.')
     const collection = within(dialog).getByLabelText('Collection')
     await user.clear(collection)
     await user.type(collection, 'Bad Name')

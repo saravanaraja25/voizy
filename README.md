@@ -10,9 +10,9 @@ first, Twilio telephony, designed for low latency. See [SCOPE.md](SCOPE.md) for 
 Working end to end on a free LiveKit Cloud project: dashboard accounts, agent builder with versions,
 browser test calls with a per-turn latency chart, HTTP tools with credentials, encrypted provider
 keys, **call history** with redacted transcripts, **direct provider keys**, and **Twilio telephony**
-(inbound, outbound). See [docs/LATENCY.md](docs/LATENCY.md) for measured numbers and
+(inbound, outbound), a **knowledge base**, and **outbound campaigns**. See [docs/LATENCY.md](docs/LATENCY.md) for measured numbers and
 [docs/TELEPHONY.md](docs/TELEPHONY.md) for exactly what has and has not been verified. **Not built
-yet:** campaigns, knowledge base, post-call summaries and analytics, Tamil. A real PSTN call
+yet:** post-call summaries and analytics, call recording, Tamil. A real PSTN call
 through Twilio has not been placed.
 
 ## Layout
@@ -22,7 +22,7 @@ packages/core   voizy_core: domain/ security/ db/ services/ (models, authz, cryp
 packages/api    voizy_api:  routes/ schemas/ web/ (FastAPI control plane, telephony provisioning)
 packages/agent  voizy_agent: the generic LiveKit voice worker
 apps/dashboard  React dashboard
-docs/           SECURITY.md, TELEPHONY.md, LATENCY.md
+docs/           SECURITY.md, TELEPHONY.md, KNOWLEDGE.md, CAMPAIGNS.md, LATENCY.md
 docker/         Postgres init; docker-compose.yml and Dockerfile at the root
 ```
 
@@ -79,7 +79,9 @@ and never silently falls back to LiveKit.
 transcript, tool use and a per-turn latency chart. Privacy is per agent (keep transcripts or not,
 redaction, retention days); see [docs/SECURITY.md](docs/SECURITY.md). **Phone** connects Twilio
 numbers (Voizy configures the Twilio trunk and LiveKit SIP for you), assigns the answering agent, and
-places outbound calls: [docs/TELEPHONY.md](docs/TELEPHONY.md). Measure your own latency with
+places outbound calls: [docs/TELEPHONY.md](docs/TELEPHONY.md). **Knowledge** holds documents agents answer from ([docs/KNOWLEDGE.md](docs/KNOWLEDGE.md)); **Campaigns**
+calls a CSV list inside your hours with retries, voicemail handling and a do-not-call list
+([docs/CAMPAIGNS.md](docs/CAMPAIGNS.md)). Measure your own latency with
 `scripts/latency_report.py`.
 
 ### First run, accounts and teammates

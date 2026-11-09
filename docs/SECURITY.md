@@ -75,6 +75,20 @@ Rules the code is held to. Each has a test or is marked *planned*.
 - Provider-side ids stay server-side; the per-number SIP password exists only inside Twilio and
   LiveKit. See [TELEPHONY.md](TELEPHONY.md).
 
+**Knowledge base**
+- Documents are tenant-isolated (forced RLS), writes need `kb:manage`, and only plain text is
+  accepted (no HTML, no binary: a NUL byte is refused). Retrieved passages are labelled as
+  information, not instructions, and the call rules come last; a document that tries to give the
+  agent orders was tested and not obeyed. Logs record counts, never text.
+
+**Campaigns and do-not-call**
+- Creating a campaign records who confirmed consent and when. Calls go out only inside the chosen
+  window in the contact's timezone. The do-not-call list is checked at import *and* at dial time.
+  Opt-outs spoken on a call are honored immediately and workspace-wide.
+- Contact numbers are masked unless the reader holds `calls:view_pii`; audit entries keep at most
+  the last four digits. CSV columns can only fill prompt variables the agent declares and cannot
+  override system variables. Cross-workspace access is blocked by row-level security.
+
 **Direct provider keys**
 - A component set to "my key" uses the stored provider key, never silently falls back to LiveKit,
   and is rejected at save time if the provider is unsupported or the key is missing.

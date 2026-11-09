@@ -7,11 +7,15 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from psycopg import AsyncConnection, sql
-from psycopg_pool import AsyncConnectionPool
+from psycopg_pool import AsyncConnectionPool, PoolTimeout
+
+
+class DatabaseUnavailableError(RuntimeError):
+    """The database could not be reached or refused the credentials."""
 
 
 async def open_pool(
-    dsn: str, *, role: str | None = "voizy_app", max_size: int = 10
+    dsn: str, *, role: str | None = "voizy_app", max_size: int = 10, timeout: float = 30.0
 ) -> AsyncConnectionPool:
     """Open a pool whose connections act as the unprivileged app role (RLS applies)."""
 
@@ -21,7 +25,16 @@ async def open_pool(
         await conn.commit()
 
     pool = AsyncConnectionPool(dsn, min_size=1, max_size=max_size, open=False, configure=configure)
-    await pool.open(wait=True)
+    try:
+        await pool.open(wait=True, timeout=timeout)
+    except PoolTimeout:
+        await pool.close()
+        raise DatabaseUnavailableError(
+            f"Could not connect to the database within {timeout:g} seconds. Check that Postgres is "
+            "running and reachable, and that VOIZY_DATABASE_URL and its password are correct "
+            "(special characters in a password inside a URL must be percent-encoded, or pass the "
+            "password separately as PGPASSWORD)."
+        ) from None
     return pool
 
 

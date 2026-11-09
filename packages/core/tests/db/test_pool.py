@@ -35,3 +35,11 @@ async def test_workspace_tx_scopes_rows_and_does_not_leak_across_pool_reuse(
             assert names == [("bravo",)]
     finally:
         await pool.close()
+
+
+async def test_an_unreachable_database_fails_with_a_clear_message() -> None:
+    import pytest
+    from voizy_core.db.pool import DatabaseUnavailableError
+
+    with pytest.raises(DatabaseUnavailableError, match="Could not connect to the database"):
+        await open_pool("postgresql://nobody@127.0.0.1:1/none", timeout=1.0)

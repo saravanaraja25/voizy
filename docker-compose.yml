@@ -7,7 +7,10 @@
 name: voizy-oss  # distinct project name so volumes never collide with other stacks
 
 x-app-env: &app-env
-  VOIZY_DATABASE_URL: postgresql://voizy_api:${VOIZY_APP_DB_PASSWORD}@postgres:5432/voizy
+  # The password travels as PGPASSWORD (libpq reads it), not inside the URL, so it may contain any
+  # characters. A '/', '+' or '@' in a URL password would otherwise break the connection.
+  VOIZY_DATABASE_URL: postgresql://voizy_api@postgres:5432/voizy
+  PGPASSWORD: ${VOIZY_APP_DB_PASSWORD}
   # Encrypts stored integration keys and tool credentials. Generate: voizy-admin generate-secret-key
   VOIZY_SECRET_KEYS: ${VOIZY_SECRET_KEYS:?set in .env (voizy-admin generate-secret-key)}
 
@@ -35,7 +38,8 @@ services:
     image: voizy-api:local
     command: ["voizy-admin", "migrate"]
     environment:
-      VOIZY_ADMIN_DATABASE_URL: postgresql://voizy_admin:${VOIZY_ADMIN_DB_PASSWORD}@postgres:5432/voizy
+      VOIZY_ADMIN_DATABASE_URL: postgresql://voizy_admin@postgres:5432/voizy
+      PGPASSWORD: ${VOIZY_ADMIN_DB_PASSWORD}
       VOIZY_APP_LOGIN_ROLE: voizy_api
     depends_on:
       postgres:

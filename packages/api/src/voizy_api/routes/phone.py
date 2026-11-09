@@ -60,7 +60,7 @@ async def _telephony(request: Request, p: Principal) -> Telephony:
         raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
 
 
-async def _live_agent(request: Request, p: Principal, agent_id: uuid.UUID) -> None:
+async def ensure_live_agent(request: Request, p: Principal, agent_id: uuid.UUID) -> None:
     """The agent must exist, be live (published) and not archived, or callers would hear silence."""
     async with workspace_tx(request.app.state.pool, p.workspace_id) as tx:
         cur = await tx.execute(
@@ -88,7 +88,7 @@ async def list_numbers(request: Request, p: Reader) -> list[PhoneNumberOut]:
 async def connect_number(body: PhoneNumberCreate, request: Request, p: Manager) -> PhoneNumberOut:
     pool = request.app.state.pool
     if body.agent_id is not None:
-        await _live_agent(request, p, body.agent_id)
+        await ensure_live_agent(request, p, body.agent_id)
     tel = await _telephony(request, p)
     target = DispatchTarget(p.workspace_id, body.agent_id) if body.agent_id else None
 
@@ -180,7 +180,7 @@ async def update_number(
                     await tel.sip.remove_rule(rule_id)
                 rule_id = ""
             else:
-                await _live_agent(request, p, body.agent_id)
+                await ensure_live_agent(request, p, body.agent_id)
                 rule_id = await tel.sip.replace_rule(
                     current.lk_inbound_trunk_id,
                     rule_id,
@@ -282,7 +282,7 @@ async def place_call(body: OutboundCall, request: Request, p: Dialer) -> Outboun
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Unknown calling number.")
     if body.to == n.e164:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Cannot call the same number.")
-    await _live_agent(request, p, body.agent_id)
+    await ensure_live_agent(request, p, body.agent_id)
     tel = await _telephony(request, p)
     settings.outbound_throttle.record_failure(key)  # counts attempts, not failures
     try:

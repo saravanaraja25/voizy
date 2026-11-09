@@ -14,6 +14,7 @@ from voizy_core.db.pool import open_pool
 from voizy_core.security.authz import AuthzError
 from voizy_core.services import accounts
 
+from voizy_api.campaign_runner import campaign_loop
 from voizy_api.livekit import LiveKitSettings
 from voizy_api.retention import retention_loop
 from voizy_api.routes.access import roles_router
@@ -21,8 +22,11 @@ from voizy_api.routes.access import router as access_router
 from voizy_api.routes.agents import router as agents_router
 from voizy_api.routes.auth import router as auth_router
 from voizy_api.routes.calls import router as calls_router
+from voizy_api.routes.campaigns import dnc_router
+from voizy_api.routes.campaigns import router as campaigns_router
 from voizy_api.routes.catalog import router as catalog_router
 from voizy_api.routes.integrations import router as integrations_router
+from voizy_api.routes.kb import router as kb_router
 from voizy_api.routes.phone import router as phone_router
 from voizy_api.routes.session import router as session_router
 from voizy_api.routes.team import roles_router as team_roles_router
@@ -57,10 +61,12 @@ def create_app(
                     "FIRST-RUN SETUP: open the dashboard and use setup token: %s", cfg.setup_token
                 )
             sweeper = asyncio.create_task(retention_loop(app.state.pool))
+            dialer = asyncio.create_task(campaign_loop(app.state.pool, cfg, app.state.livekit))
             try:
                 yield
             finally:
                 sweeper.cancel()
+                dialer.cancel()
         finally:
             if pool is None:
                 await app.state.pool.close()
@@ -95,6 +101,9 @@ def create_app(
         integrations_router,
         calls_router,
         phone_router,
+        kb_router,
+        campaigns_router,
+        dnc_router,
     ):
         app.include_router(router)
     if cfg.custom_roles:

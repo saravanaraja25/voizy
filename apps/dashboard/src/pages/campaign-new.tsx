@@ -166,7 +166,7 @@ export function CampaignNewPage() {
           <Field label="Default timezone" htmlFor="c-tz" hint="Used for people without a timezone column, like Asia/Kolkata." className="md:col-span-2">
             <Input id="c-tz" value={timezone} onChange={(e) => setTimezone(e.target.value)} />
           </Field>
-          <NumberField id="c-conc" label="Calls at the same time" value={concurrent} min={1} max={10} onChange={setConcurrent} />
+          <NumberField id="c-conc" label="Calls at the same time" value={concurrent} min={1} max={10} onChange={setConcurrent} hint="LiveKit's free plan allows about 5 at once." />
           <NumberField id="c-att" label="Attempts per person" value={attempts} min={1} max={5} onChange={setAttempts} hint="Counts the first call." />
           <NumberField id="c-retry" label="Wait before retrying (minutes)" value={retry} min={5} max={10080} onChange={setRetry} />
         </CardContent>

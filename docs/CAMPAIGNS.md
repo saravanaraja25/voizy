@@ -61,6 +61,9 @@ per workspace.
 - Contact numbers are masked in the dashboard and API unless the reader holds `calls:view_pii`.
 - Starting needs `campaigns:run`; contacts and the do-not-call list need
   `campaigns:manage_contacts`; everything is audited (no full numbers in the log).
+- On LiveKit's free plan about **5 calls can run at once** (and 5 Twilio participants); the campaign
+  form allows up to 10, so set **Calls at the same time** to 5 or less there, or calls beyond the limit
+  fail and are retried.
 - Campaign dialing is separate from the 30-calls-per-hour cap on one-off outbound calls. Concurrency
   is the limit; keep it low until you trust a campaign.
 

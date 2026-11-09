@@ -8,10 +8,38 @@ outbound campaigns. English first; Tamil and other languages are planned.
 
 Apache-2.0 · bring your own keys · multi-tenant by design (SaaS-ready) but built to self-host.
 
-- [What you can do](#what-you-can-do) · [Status](#status) · [Architecture](#architecture-at-a-glance)
-- [Quick start (Docker)](#quick-start-docker) · [Using Voizy](#using-voizy) · [Configuration](#configuration)
-- [Local development](#local-development) · [Production notes](#production-notes) · [Troubleshooting](#troubleshooting)
-- [Repository layout](#repository-layout) · [Security](#security) · [Roadmap](#roadmap) · [Contributing](#contributing)
+**New here?** Start with the [Quick start](#quick-start-docker); if you have never used LiveKit or Twilio,
+follow [docs/GETTING-STARTED.md](docs/GETTING-STARTED.md) first.
+
+
+<!-- toc:start -->
+## Table of contents
+
+- [What you can do](#what-you-can-do)
+- [Screenshots](#screenshots)
+- [Status](#status)
+- [Architecture at a glance](#architecture-at-a-glance)
+- [Quick start (Docker)](#quick-start-docker)
+- [Using Voizy](#using-voizy)
+  - [1. Keys (Settings)](#1-keys-settings)
+  - [2. Build an agent](#2-build-an-agent)
+  - [3. Tools](#3-tools)
+  - [4. Knowledge](#4-knowledge)
+  - [5. Phone numbers and calls](#5-phone-numbers-and-calls)
+  - [6. Campaigns](#6-campaigns)
+  - [7. Calls](#7-calls)
+  - [8. Team](#8-team)
+  - [Using the API directly](#using-the-api-directly)
+- [Configuration](#configuration)
+- [Local development](#local-development)
+- [Production notes](#production-notes)
+- [Troubleshooting](#troubleshooting)
+- [Repository layout](#repository-layout)
+- [Security](#security)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [License](#license)
+<!-- toc:end -->
 
 ## What you can do
 
@@ -80,8 +108,18 @@ Call flows, the data model, worker internals, design trade-offs and how to exten
 
 Runs everything: Postgres, migrations, API, voice worker and dashboard.
 
-**You need:** Docker with Compose v2, and a free [LiveKit Cloud](https://cloud.livekit.io) project
-(its URL, API key and secret). A phone number is optional and comes later.
+**You need:** Docker with Compose v2, a browser with a microphone (and headphones), and a free
+[LiveKit Cloud](https://cloud.livekit.io) project (its URL, API key and secret). A phone number
+(Twilio) is optional and comes later.
+
+> **First time with LiveKit or Twilio?** Follow **[docs/GETTING-STARTED.md](docs/GETTING-STARTED.md)**:
+> a step-by-step guide to creating the accounts, finding every key, what the free plans cover, and a
+> "if it doesn't work" table. Come back here for the install.
+
+| Account | Needed for | Cost to start |
+|---|---|---|
+| LiveKit Cloud | audio, SIP, hosted speech and language models | Free plan (its allowances are hard caps) |
+| Twilio | real phone calls only | Trial credit; may need a small upgrade for SIP trunking |
 
 1. **Get the code and make your config**
    ```sh
@@ -93,21 +131,29 @@ Runs everything: Postgres, migrations, API, voice worker and dashboard.
    openssl rand -base64 24        # use for VOIZY_ADMIN_DB_PASSWORD, and again for VOIZY_APP_DB_PASSWORD
    echo "VOIZY_SECRET_KEYS=k1:$(openssl rand -base64 32)"   # paste the whole line into .env
    ```
+   No `openssl` (for example Windows)? Use `python3 -c "import secrets,base64;print(base64.b64encode(secrets.token_bytes(32)).decode())"`
+   for each value, and write `VOIZY_SECRET_KEYS=k1:<that value>`.
    `VOIZY_SECRET_KEYS` encrypts every key you save in the dashboard. **Back it up**: losing it means
    re-entering all saved keys.
 3. **Start**
    ```sh
    docker compose up --build
    ```
+   The first build downloads a lot and can take several minutes. It is ready when the logs settle and
+   `docker compose ps` shows `postgres`, `api`, `agent` and `dashboard` running.
 4. **Get the one-time setup token** (printed by the API on first start):
    ```sh
    docker compose logs api | grep "setup token"
    ```
 5. **Open <http://localhost:8080>**, paste the token, and create your workspace and admin account.
 6. **Connect LiveKit:** *Settings → LiveKit*, enter the URL, key and secret, press *Test connection*.
-   The voice worker picks the connection up within seconds; no restart.
-7. **Make an agent and talk to it:** *Agents → New agent*, then *Start call* in the test console
-   (use headphones). That is a full voice agent with no phone number needed.
+   The voice worker picks the connection up within seconds; no restart. (Where to find these three
+   values: [docs/GETTING-STARTED.md](docs/GETTING-STARTED.md#part-1-livekit-required).)
+7. **Make an agent and talk to it:** *Agents → New agent*, then *Start call* in the test console and
+   allow the microphone (use headphones). The agent should greet you within a couple of seconds, and
+   you will see the transcript and a response-time chart. That is a full voice agent with no phone
+   number needed. If it stays silent, see
+   [If it doesn't work](docs/GETTING-STARTED.md#if-it-doesnt-work).
 
 Notes:
 - Only the dashboard's port is published, on `127.0.0.1`. Its nginx serves the app and proxies `/v1`
@@ -147,8 +193,10 @@ knowledge base* in the agent's Knowledge tab and choose how it is delivered. Use
 what the agent would find. Details and limits: [docs/KNOWLEDGE.md](docs/KNOWLEDGE.md).
 
 ### 5. Phone numbers and calls
-You need a Twilio account with a voice-capable number (a trial number works for first tests) and your
-Twilio keys in Settings. *Phone → Connect a number*, optionally pick the agent that answers, then
+You need a Twilio account with a voice-capable number and your Twilio keys in Settings; **trial
+accounts have limits** (verified numbers only, country permissions, possibly no SIP trunking), all
+explained step by step in [docs/GETTING-STARTED.md](docs/GETTING-STARTED.md#part-2-twilio-only-for-real-phone-calls).
+Then *Phone → Connect a number*, optionally pick the agent that answers, then
 call it, or use *Call* on a number to place an outbound call. Setup, security, what is verified and
 troubleshooting: [docs/TELEPHONY.md](docs/TELEPHONY.md).
 
@@ -188,7 +236,7 @@ All settings are environment variables. In Docker, put them in `.env`.
 |---|---|---|
 | `VOIZY_ADMIN_DB_PASSWORD`, `VOIZY_APP_DB_PASSWORD` | Compose only: the two database passwords (owner and the app's unprivileged login role) | required |
 | `VOIZY_SECRET_KEYS` | Encrypts stored keys. Format `k1:<base64 32 bytes>`; comma-separate to rotate (first is active). Generate with `voizy-admin generate-secret-key` | required |
-| `VOIZY_DATABASE_URL` | The app's connection (API and worker). The role must be allowed to `SET ROLE voizy_app` | set by Compose |
+| `VOIZY_DATABASE_URL` | The app's connection (API and worker). The role must be allowed to `SET ROLE voizy_app`. **Percent-encode special characters in a password inside the URL**, or leave the password out and set `PGPASSWORD` | set by Compose |
 | `VOIZY_ADMIN_DATABASE_URL` | Owner connection used only by `voizy-admin migrate`/`bootstrap` | |
 | `VOIZY_APP_LOGIN_ROLE` | Role to grant membership of `voizy_app` during migration | |
 | `VOIZY_COOKIE_SECURE` | Mark the session cookie `Secure`. **Set `1` behind HTTPS.** | `0` in Compose, `1` otherwise |
@@ -305,7 +353,7 @@ apps/dashboard      React 19 + TypeScript + Vite + Tailwind v4 + shadcn/ui (Base
 packages/core       voizy_core: domain/ (config, permissions, dispatch) · security/ · db/ (pool, migrations) · services/
 packages/api        voizy_api: routes/ · schemas/ · web/ (auth, CSRF, middleware) · telephony · campaign + retention loops
 packages/agent      voizy_agent: the generic LiveKit voice worker, tools, knowledge, call control, recorder, devtools/
-docs/               ARCHITECTURE · SECURITY · TELEPHONY · KNOWLEDGE · CAMPAIGNS · LATENCY
+docs/               GETTING-STARTED · ARCHITECTURE · SECURITY · TELEPHONY · KNOWLEDGE · CAMPAIGNS · LATENCY
 dev/                example agents and a terminal runner
 scripts/            export_openapi.py, latency_report.py
 docker/             Postgres init (the app's login role)

@@ -3,6 +3,19 @@
 How Voizy is put together, why, and where to extend it. For what is verified and what is not, see the
 status tables in the [README](../README.md); for security rules see [SECURITY.md](SECURITY.md).
 
+<!-- toc:start -->
+## Table of contents
+
+- [The idea](#the-idea)
+- [Components](#components)
+- [A call, end to end](#a-call-end-to-end)
+- [Data model](#data-model)
+- [Inside the voice worker](#inside-the-voice-worker)
+- [Security boundaries (summary)](#security-boundaries-summary)
+- [Design decisions and trade-offs](#design-decisions-and-trade-offs)
+- [Extending Voizy](#extending-voizy)
+<!-- toc:end -->
+
 ## The idea
 
 An **agent is data, not code**. Everything that makes one agent different from another (prompt,

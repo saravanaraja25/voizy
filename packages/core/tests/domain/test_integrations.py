@@ -16,7 +16,13 @@ def test_every_integration_field_is_reserved_and_names_are_unique() -> None:
         ("livekit_api_key", "APIabc123def", "short"),
         ("twilio_account_sid", "AC" + "a" * 32, "AC123"),
         ("twilio_auth_token", "b" * 32, "z" * 32),
-        ("openai_api_key", "sk-" + "a" * 40, "pk-" + "a" * 40),
+        ("openai_api_key", "sk-" + "a" * 40, "sk-" + "a b" * 10),
+        # Provider key formats change; any one-line printable key of sensible length is accepted.
+        ("google_api_key", "AIza" + "x" * 35, "AIza short"),
+        # A newer Google key shape: an "AQ." prefix with a dot, then mixed characters.
+        ("google_api_key", "AQ.Ab" + "x1_Y" * 12, "x" * 10),
+        ("deepgram_api_key", "a1B2-c3.D4_e5" * 3, "has a space " * 3),
+        ("cartesia_api_key", "sk_car_" + "x" * 30, "tab\there" * 4),
     ],
 )
 def test_field_patterns(field: str, good: str, bad: str) -> None:

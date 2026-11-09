@@ -96,11 +96,14 @@ async def update_integration(
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, f"Unknown field: {sorted(unknown)[0]}"
         )
-    given = {k: v.strip() for k, v in body.values.items() if v.strip()}
+    # Pasted values often arrive wrapped in quotes; those are never part of a key.
+    given = {k: v.strip().strip("\"'").strip() for k, v in body.values.items() if v.strip()}
     for name, value in given.items():
         if not known[name].valid(value):
             raise HTTPException(
-                status.HTTP_422_UNPROCESSABLE_CONTENT, f"{known[name].label} does not look right."
+                status.HTTP_422_UNPROCESSABLE_CONTENT,
+                f"{known[name].label} does not look right: it should be one line with no spaces. "
+                "Copy it again, without quotes.",
             )
     if not given:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Nothing to save.")

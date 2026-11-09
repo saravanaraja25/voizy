@@ -32,6 +32,10 @@ class Integration:
     used_for: str
 
 
+# Model-provider keys change format over time (prefixes, length, new characters), so we only require
+# one line of printable characters. The real check is the provider itself, via "Test connection".
+PROVIDER_KEY = r"^[!-~]{16,512}$"
+
 INTEGRATIONS: tuple[Integration, ...] = (
     Integration(
         "livekit",
@@ -84,7 +88,7 @@ INTEGRATIONS: tuple[Integration, ...] = (
             IntegrationField(
                 "openai_api_key",
                 "API key",
-                pattern=r"^sk-[A-Za-z0-9_-]{16,300}$",
+                pattern=PROVIDER_KEY,
                 placeholder="sk-...",
             ),
         ),
@@ -98,7 +102,7 @@ INTEGRATIONS: tuple[Integration, ...] = (
             IntegrationField(
                 "google_api_key",
                 "API key",
-                pattern=r"^[A-Za-z0-9_-]{20,200}$",
+                pattern=PROVIDER_KEY,
                 placeholder="AIza...",
             ),
         ),
@@ -108,14 +112,14 @@ INTEGRATIONS: tuple[Integration, ...] = (
         "deepgram",
         "Deepgram",
         "Speech recognition, used directly instead of through LiveKit.",
-        (IntegrationField("deepgram_api_key", "API key", pattern=r"^[A-Za-z0-9]{20,100}$"),),
+        (IntegrationField("deepgram_api_key", "API key", pattern=PROVIDER_KEY),),
         "Agents whose speech recognition is from Deepgram.",
     ),
     Integration(
         "cartesia",
         "Cartesia",
         "Voices, used directly instead of through LiveKit.",
-        (IntegrationField("cartesia_api_key", "API key", pattern=r"^[A-Za-z0-9_-]{16,200}$"),),
+        (IntegrationField("cartesia_api_key", "API key", pattern=PROVIDER_KEY),),
         "Agents whose voice is from Cartesia.",
     ),
 )

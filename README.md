@@ -70,7 +70,7 @@ Working end to end on a free LiveKit Cloud project. Read this table honestly bef
 |---|---|
 | Dashboard, accounts, agents and versions, test calls, tools, knowledge, calls, campaigns | Built and tested (unit, API and real-browser journeys) |
 | Voice runtime on LiveKit (browser calls, inbound/outbound/campaign legs, hang-up, voicemail, opt-out) | Verified on real LiveKit Cloud; the phone leg was simulated for inbound and campaigns |
-| Twilio provisioning and outbound calls | Calls placed to a real phone in manual testing; Twilio REST calls also checked against a mock server and Twilio's docs |
+| Twilio provisioning and outbound calls | Worked on a **free Twilio trial account** and the **free LiveKit Cloud plan**: trunk setup, number connection and a real outbound call to a verified phone. Twilio REST calls also checked against a mock server and Twilio's docs |
 | **Inbound call through real Twilio** | **Not yet verified** end to end |
 | **A campaign dialing through real Twilio** | **Not yet verified** (same dialing code as one-off outbound calls) |
 | Direct provider keys (Deepgram, OpenAI, Google, Cartesia) | Built and unit-tested; **not run against the real providers** |
@@ -120,7 +120,7 @@ Runs everything: Postgres, migrations, API, voice worker and dashboard.
 | Account | Needed for | Cost to start |
 |---|---|---|
 | LiveKit Cloud | audio, SIP, hosted speech and language models | Free plan (its allowances are hard caps) |
-| Twilio | real phone calls only | Trial credit; may need a small upgrade for SIP trunking |
+| Twilio | real phone calls only | A free trial is enough to try it (calls to verified numbers only); upgrade for anything else |
 
 1. **Get the code and make your config**
    ```sh

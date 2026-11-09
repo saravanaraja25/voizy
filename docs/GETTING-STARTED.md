@@ -123,10 +123,14 @@ Per Twilio's documentation at the time of writing, a trial account:
 - may play a short "trial account" message at the start of calls;
 - is restricted in which countries it can call; see the next step.
 
-Twilio's own pages do not fully agree on whether **Elastic SIP Trunking** (the feature Voizy uses) works
-on a trial: one says SIP trunk calls from trials work but only to verified numbers, another says SIP
-trunking needs an upgraded account. If connecting a number fails with a Twilio error, **upgrading the
-account (a small top-up) is the likely fix**; the error message Voizy shows contains Twilio's reason.
+**Tested:** with a **free Twilio trial account** and the **free LiveKit Cloud plan**, Voizy created the
+Elastic SIP trunk, connected a number, and placed a real outbound call to a verified phone. So a
+trial is enough to try Voizy's phone features, within the limits above.
+
+Twilio's own documentation is inconsistent about SIP trunking on trials (one page says trial SIP calls
+work but only to verified numbers, another says SIP trunking needs an upgraded account), and what a
+trial allows can vary by account and region. If connecting a number fails with a Twilio error, read
+the message Voizy shows (it contains Twilio's reason); upgrading the account is the likely fix.
 
 ### 2.3 Allow calling your country
 

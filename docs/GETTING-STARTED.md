@@ -23,6 +23,7 @@ ends with a way to check it worked.
   - [2.3 Allow calling your country](#23-allow-calling-your-country)
   - [2.4 Connect Twilio in Voizy](#24-connect-twilio-in-voizy)
   - [2.5 Your first real calls](#25-your-first-real-calls)
+- [Switching LiveKit projects or keys](#switching-livekit-projects-or-keys)
 - [If it doesn't work](#if-it-doesnt-work)
 - [Optional alternatives](#optional-alternatives)
 - [When you're done testing](#when-youre-done-testing)

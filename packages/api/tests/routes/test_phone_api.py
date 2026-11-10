@@ -24,6 +24,7 @@ OTHER = "+14155550199"
 class FakeTwilio:
     def __init__(self, log: list[tuple[str, ...]]) -> None:
         self.log, self.n = log, itertools.count(1)
+        self.urls: list[tuple[str, str]] = []
 
     async def find_number(self, e164: str) -> str:
         self.log.append(("twilio.find", e164))
@@ -37,6 +38,14 @@ class FakeTwilio:
 
     async def add_origination(self, trunk_sid: str, sip_url: str) -> None:
         self.log.append(("twilio.origination", sip_url))
+        self.urls.append((f"OU{len(self.urls) + 1}", sip_url))
+
+    async def list_origination_urls(self, trunk_sid: str) -> list[tuple[str, str]]:
+        return list(self.urls)
+
+    async def delete_origination(self, trunk_sid: str, origination_sid: str) -> None:
+        self.log.append(("twilio.del_origination", origination_sid))
+        self.urls = [u for u in self.urls if u[0] != origination_sid]
 
     async def create_credential_list(self, friendly_name: str) -> str:
         self.log.append(("twilio.cred_list",))
@@ -311,3 +320,27 @@ async def test_audit_never_records_the_full_dialed_number(
         "SELECT detail::text FROM audit_log WHERE action='call.outbound'"
     ).fetchone()
     assert detail is not None and OTHER not in detail[0] and OTHER[-4:] in detail[0]
+
+
+async def test_reconnecting_after_a_livekit_project_change_repoints_the_twilio_trunk(
+    client: httpx.AsyncClient, workspace_a: BootstrapResult, env: Env
+) -> None:
+    h = bearer(workspace_a.token)
+    await connect_providers(client, h)
+    assert (
+        await client.post("/v1/phone-numbers", headers=h, json={"e164": NUMBER})
+    ).status_code == 201
+    # The workspace now points at a different LiveKit project: its SIP address changes.
+    env.twilio.urls = [("OU-old", "sip:old-project.sip.livekit.cloud;transport=tcp")]
+    env.log.clear()
+    assert (
+        await client.post("/v1/phone-numbers", headers=h, json={"e164": OTHER})
+    ).status_code == 201
+    assert ("twilio.origination", "sip:proj.sip.livekit.cloud;transport=tcp") in env.log
+    assert ("twilio.del_origination", "OU-old") in env.log
+    assert [u for _, u in env.twilio.urls] == ["sip:proj.sip.livekit.cloud;transport=tcp"]
+    env.log.clear()
+    assert (
+        await client.post("/v1/phone-numbers", headers=h, json={"e164": "+14155550177"})
+    ).status_code == 201
+    assert "twilio.origination" not in env.names()  # already correct: left alone

@@ -106,6 +106,8 @@ async def connect_number(body: PhoneNumberCreate, request: Request, p: Manager) 
             trunk = numbers.Trunk(trunk_sid, domain, list_sid)
             async with pool.connection() as conn:
                 await numbers.save_trunk(conn, p.workspace_id, trunk)
+        else:
+            await _refresh_origination(tel, trunk.twilio_trunk_sid)
         await tel.twilio.attach_number(trunk.twilio_trunk_sid, number_sid)
         undo.append(partial(tel.twilio.detach_number, trunk.twilio_trunk_sid, number_sid))
         user, password = new_sip_credentials()
@@ -151,6 +153,21 @@ async def connect_number(body: PhoneNumberCreate, request: Request, p: Manager) 
     if created is None:
         raise not_found()
     return _out(created)
+
+
+async def _refresh_origination(tel: Telephony, trunk_sid: str) -> None:
+    """Point an existing Twilio trunk at the current LiveKit SIP address.
+
+    A workspace reuses one trunk. If the LiveKit project changed since it was created, the trunk
+    would keep sending incoming calls to the old project's address.
+    """
+    wanted = f"sip:{tel.sip_host};transport=tcp"
+    existing = await tel.twilio.list_origination_urls(trunk_sid)
+    if any(url == wanted for _, url in existing):
+        return
+    await tel.twilio.add_origination(trunk_sid, wanted)
+    for sid, _ in existing:
+        await tel.twilio.delete_origination(trunk_sid, sid)
 
 
 async def _rollback(undo: list[Callable[[], Awaitable[None]]]) -> None:

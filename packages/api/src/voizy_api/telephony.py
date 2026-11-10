@@ -10,15 +10,18 @@ behind two small protocols so tests can substitute fakes and a mock Twilio.
 
 from __future__ import annotations
 
+import functools
 import secrets
 import urllib.parse
 import uuid
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
-from typing import Protocol
+from typing import Any, Protocol
 
 import httpx
 from google.protobuf.duration_pb2 import Duration
 from livekit import api
+from livekit.api.twirp_client import ServerError, SipCallError
 from voizy_core.domain.dispatch import AGENT_WORKER_NAME, DispatchTarget, encode_dispatch
 
 from voizy_api.livekit import LiveKitSettings
@@ -56,6 +59,44 @@ class TwilioCreds:
     auth_token: str = field(repr=False)
 
 
+def livekit_error(exc: Exception) -> TelephonyError:
+    """A LiveKit failure as a message an operator can act on (never a raw 500)."""
+    code = str(getattr(exc, "code", "") or "")
+    if isinstance(exc, SipCallError):
+        return TelephonyError(
+            "The call could not be placed: the other side did not accept it (it may be busy, "
+            "declined, or the number is not allowed)."
+        )
+    if code == "not_found":
+        return TelephonyError(
+            "LiveKit could not find the SIP trunk for this number. It was probably created in a "
+            "different LiveKit project (for example before you changed your LiveKit keys). "
+            "Disconnect the number and connect it again."
+        )
+    if code in ("unauthenticated", "permission_denied"):
+        return TelephonyError("LiveKit rejected the credentials. Check them in Settings.")
+    if code == "resource_exhausted":
+        return TelephonyError(
+            "LiveKit refused because a limit was reached. Check your LiveKit plan's limits."
+        )
+    return TelephonyError(f"LiveKit refused the request{f' ({code})' if code else ''}.")
+
+
+def translate_livekit_errors[**P, T](
+    fn: Callable[P, Coroutine[Any, Any, T]],
+) -> Callable[P, Coroutine[Any, Any, T]]:
+    """Make a LiveKitSip method raise TelephonyError instead of LiveKit's own exceptions."""
+
+    @functools.wraps(fn)
+    async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+        try:
+            return await fn(*args, **kwargs)
+        except (ServerError, SipCallError) as exc:
+            raise livekit_error(exc) from None
+
+    return wrapper
+
+
 def sip_host(livekit_url: str, override: str | None = None) -> str:
     """LiveKit Cloud serves SIP at <project>.sip.livekit.cloud, next to <project>.livekit.cloud."""
     if override:
@@ -73,6 +114,8 @@ class Twilio(Protocol):
     async def find_number(self, e164: str) -> str: ...
     async def create_trunk(self, friendly_name: str, domain_name: str) -> str: ...
     async def add_origination(self, trunk_sid: str, sip_url: str) -> None: ...
+    async def list_origination_urls(self, trunk_sid: str) -> list[tuple[str, str]]: ...
+    async def delete_origination(self, trunk_sid: str, origination_sid: str) -> None: ...
     async def create_credential_list(self, friendly_name: str) -> str: ...
     async def attach_credential_list(self, trunk_sid: str, list_sid: str) -> None: ...
     async def add_credential(self, list_sid: str, username: str, password: str) -> str: ...
@@ -143,6 +186,18 @@ class TwilioApi:
                 "Priority": "1",
                 "Enabled": "true",
             },
+        )
+
+    async def list_origination_urls(self, trunk_sid: str) -> list[tuple[str, str]]:
+        body = await self._call("GET", f"{TWILIO_TRUNKING}/Trunks/{trunk_sid}/OriginationUrls")
+        items = body.get("origination_urls")
+        if not isinstance(items, list):
+            return []
+        return [(str(i["sid"]), str(i["sip_url"])) for i in items if "sid" in i and "sip_url" in i]
+
+    async def delete_origination(self, trunk_sid: str, origination_sid: str) -> None:
+        await self._call(
+            "DELETE", f"{TWILIO_TRUNKING}/Trunks/{trunk_sid}/OriginationUrls/{origination_sid}"
         )
 
     async def create_credential_list(self, friendly_name: str) -> str:
@@ -260,6 +315,7 @@ def outbound_dispatch_request(
 
 
 class Sip(Protocol):
+    @translate_livekit_errors
     async def create_inbound(
         self, e164: str, target: DispatchTarget | None, allowed: tuple[str, ...]
     ) -> tuple[str, str]:
@@ -267,6 +323,7 @@ class Sip(Protocol):
         ...
 
     async def create_outbound(self, e164: str, address: str, user: str, password: str) -> str: ...
+    @translate_livekit_errors
     async def replace_rule(
         self, trunk_id: str, old_rule_id: str, target: DispatchTarget
     ) -> str: ...
@@ -287,6 +344,7 @@ class LiveKitSip:
     def _lk(self) -> api.LiveKitAPI:
         return api.LiveKitAPI(self._s.url, self._s.api_key, self._s.api_secret)
 
+    @translate_livekit_errors
     async def create_inbound(
         self, e164: str, target: DispatchTarget | None, allowed: tuple[str, ...]
     ) -> tuple[str, str]:
@@ -299,6 +357,7 @@ class LiveKitSip:
             )
             return trunk.sip_trunk_id, rule.sip_dispatch_rule_id
 
+    @translate_livekit_errors
     async def create_outbound(self, e164: str, address: str, user: str, password: str) -> str:
         async with self._lk() as lk:
             t = await lk.sip.create_sip_outbound_trunk(
@@ -306,6 +365,7 @@ class LiveKitSip:
             )
             return t.sip_trunk_id
 
+    @translate_livekit_errors
     async def replace_rule(self, trunk_id: str, old_rule_id: str, target: DispatchTarget) -> str:
         async with self._lk() as lk:
             if old_rule_id:
@@ -315,12 +375,14 @@ class LiveKitSip:
             rule = await lk.sip.create_sip_dispatch_rule(dispatch_rule_request(trunk_id, target))
             return rule.sip_dispatch_rule_id
 
+    @translate_livekit_errors
     async def remove_rule(self, rule_id: str) -> None:
         async with self._lk() as lk:
             await lk.sip.delete_sip_dispatch_rule(
                 api.DeleteSIPDispatchRuleRequest(sip_dispatch_rule_id=rule_id)
             )
 
+    @translate_livekit_errors
     async def delete_inbound(self, trunk_id: str, rule_id: str) -> None:
         async with self._lk() as lk:
             if rule_id:
@@ -329,10 +391,12 @@ class LiveKitSip:
                 )
             await lk.sip.delete_sip_trunk(api.DeleteSIPTrunkRequest(sip_trunk_id=trunk_id))
 
+    @translate_livekit_errors
     async def delete_outbound(self, trunk_id: str) -> None:
         async with self._lk() as lk:
             await lk.sip.delete_sip_trunk(api.DeleteSIPTrunkRequest(sip_trunk_id=trunk_id))
 
+    @translate_livekit_errors
     async def dial(self, trunk_id: str, to: str, target: DispatchTarget) -> str:
         room = f"out-{uuid.uuid4().hex[:12]}"
         async with self._lk() as lk:

@@ -172,3 +172,38 @@ def test_outbound_dispatch_names_the_number_in_signed_metadata() -> None:
     assert parsed == DispatchTarget(
         target.workspace_id, target.agent_id, None, "outbound", "+14155550199"
     )
+
+
+async def test_listing_and_deleting_origination_urls_use_the_documented_endpoints() -> None:
+    mock = MockTwilio()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        mock.requests.append((request.method, str(request.url), {}))
+        if request.method == "GET":
+            return httpx.Response(
+                200,
+                json={
+                    "origination_urls": [{"sid": "OU1", "sip_url": "sip:a.example;transport=tcp"}]
+                },
+            )
+        return httpx.Response(204)
+
+    t = TwilioApi(TwilioCreds(SID, TOKEN), transport=httpx.MockTransport(handler))
+    assert await t.list_origination_urls("TK1") == [("OU1", "sip:a.example;transport=tcp")]
+    await t.delete_origination("TK1", "OU1")
+    assert [(m, u.split("twilio.com")[1]) for m, u, _ in mock.requests] == [
+        ("GET", "/v1/Trunks/TK1/OriginationUrls"),
+        ("DELETE", "/v1/Trunks/TK1/OriginationUrls/OU1"),
+    ]
+
+
+def test_livekit_errors_become_messages_an_operator_can_act_on() -> None:
+    from livekit.api.twirp_client import ServerError
+    from voizy_api.telephony import livekit_error
+
+    gone = livekit_error(ServerError("not_found", "requested sip trunk does not exist", status=404))
+    assert "different LiveKit project" in str(gone) and "connect it again" in str(gone)
+    assert "credentials" in str(livekit_error(ServerError("unauthenticated", "x", status=401)))
+    assert "limit" in str(livekit_error(ServerError("resource_exhausted", "x", status=429)))
+    other = livekit_error(ServerError("internal", "secret detail", status=500))
+    assert "internal" in str(other) and "secret detail" not in str(other)

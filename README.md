@@ -70,7 +70,7 @@ Working end to end on a free LiveKit Cloud project. Read this table honestly bef
 |---|---|
 | Dashboard, accounts, agents and versions, test calls, tools, knowledge, calls, campaigns | Built and tested (unit, API and real-browser journeys) |
 | Voice runtime on LiveKit (browser calls, inbound/outbound/campaign legs, hang-up, voicemail, opt-out) | Verified on real LiveKit Cloud; the phone leg was simulated for inbound and campaigns |
-| Twilio provisioning and outbound calls | Worked on a **free Twilio trial account** and the **free LiveKit Cloud plan**: trunk setup, number connection and a real outbound call to a verified phone. Twilio REST calls also checked against a mock server and Twilio's docs |
+| Twilio provisioning and outbound calls | Worked on a **free Twilio trial account** and the **free LiveKit Cloud plan**: trunk setup, number connection and a real outbound call to a verified phone. Disconnecting and reconnecting a number (including after switching LiveKit projects) also worked against real Twilio and LiveKit. Twilio REST calls also checked against a mock server and Twilio's docs |
 | **Inbound call through real Twilio** | **Not yet verified** end to end |
 | **A campaign dialing through real Twilio** | **Not yet verified** (same dialing code as one-off outbound calls) |
 | Direct provider keys | **Google AI (language model): verified** with a real key in a live conversation (this found and fixed an API-version bug). Deepgram, OpenAI and Cartesia: built and unit-tested, **not yet run against the real providers** |

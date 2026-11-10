@@ -177,6 +177,20 @@ Afterwards open **Calls** to see the transcript, tools used, and the other party
 
 ---
 
+## Switching LiveKit projects or keys
+
+A connected phone number belongs to one LiveKit project: its SIP trunks live there. If you change
+projects (new URL, key and secret), do this in order:
+1. **Settings → LiveKit:** enter the new values and press *Test connection*. Values saved here take
+   priority over `.env` for test calls, so update them even if you changed `.env`.
+2. **Phone:** disconnect each number, then connect it again. This recreates the SIP trunks in the new
+   project and points your Twilio trunk at the new LiveKit address. A number a draft, running or paused
+   campaign still uses can't be disconnected until that campaign is cancelled or finished.
+3. Restart the voice worker if it runs from `.env` credentials.
+
+If you skip step 2, calling from the number fails with a message saying its SIP trunk was probably
+created in a different LiveKit project.
+
 ## If it doesn't work
 
 | What you see | Likely cause and what to do |

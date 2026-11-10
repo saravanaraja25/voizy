@@ -41,8 +41,8 @@ One generic LiveKit Agents worker that builds its pipeline from a versioned `Age
   bring-your-own Twilio credentials, number assignment, inbound and outbound calls, the other party's
   number on each call.
 - **Not built:** business hours, fallback routing, call transfer to a human.
-- **Verified:** trunk setup, number connection and a real outbound call on a free Twilio trial and the
-  free LiveKit plan. **Not verified:** an inbound call through real Twilio.
+- **Verified:** trunk setup, number connection, disconnecting and reconnecting a number (also after
+  switching LiveKit projects) and a real outbound call on a free Twilio trial and the free LiveKit plan. **Not verified:** an inbound call through real Twilio.
 
 ### 5. Campaigns
 - **Built:** CSV contacts with per-person variables, calling days and hours in each person's

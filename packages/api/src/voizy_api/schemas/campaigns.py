@@ -20,7 +20,7 @@ class CampaignOut(BaseModel):
     name: str
     agent_id: uuid.UUID
     agent_name: str
-    from_number_id: uuid.UUID
+    from_number_id: uuid.UUID | None  # None once the number has been disconnected
     from_number: str  # masked unless the reader holds calls:view_pii
     status: CampaignStatus
     timezone: str

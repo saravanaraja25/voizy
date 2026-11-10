@@ -1094,11 +1094,8 @@ export interface components {
             days: number[];
             /** From Number */
             from_number: string;
-            /**
-             * From Number Id
-             * Format: uuid
-             */
-            from_number_id: string;
+            /** From Number Id */
+            from_number_id: string | null;
             /**
              * Id
              * Format: uuid

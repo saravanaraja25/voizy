@@ -239,6 +239,16 @@ async def disconnect_number(number_id: uuid.UUID, request: Request, p: Manager) 
         trunk = await numbers.get_trunk(conn, p.workspace_id)
     if n is None:
         raise not_found()
+    async with pool.connection() as conn:
+        blockers = await numbers.campaign_blockers(conn, p.workspace_id, number_id)
+    if blockers:
+        # Checked before anything is removed from Twilio or LiveKit, so a refusal leaves it intact.
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "This number is used by the campaign(s): "
+            + ", ".join(blockers)
+            + ". Cancel or finish them first.",
+        )
     tel = await _telephony(request, p)
     problems: list[str] = []
     steps = [

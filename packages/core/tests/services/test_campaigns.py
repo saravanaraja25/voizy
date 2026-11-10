@@ -332,3 +332,31 @@ async def test_import_dedupes_and_tenants_are_isolated(
         app_aconn, a, (await cp.list_contacts(app_aconn, a, cid))[0][0].id
     )
     assert ctx is not None and ctx[1] == "P0"
+
+
+async def test_a_finished_campaign_survives_its_number_being_disconnected(
+    app_aconn: AsyncConnection, admin: psycopg.Connection, two_workspaces: WS
+) -> None:
+    from voizy_core.services import telephony as tel
+
+    a, _ = two_workspaces
+    cid = await seed(app_aconn, admin, a)
+    number_id = admin.execute(
+        "SELECT from_number_id FROM campaigns WHERE id = %s", (cid,)
+    ).fetchone()[0]  # type: ignore[index]
+    before = await cp.get_campaign(app_aconn, a, cid)
+    assert (
+        before is not None
+        and before.from_number_id == number_id
+        and before.from_e164.startswith("+1415")
+    )
+
+    # A draft still needs its number: the API refuses to disconnect it.
+    assert await tel.campaign_blockers(app_aconn, a, number_id) == ["Spring"]
+    await cp.set_status(app_aconn, a, cid, "cancelled")
+    assert await tel.campaign_blockers(app_aconn, a, number_id) == []
+
+    assert await tel.delete_number(app_aconn, a, number_id)  # no foreign-key error any more
+    after = await cp.get_campaign(app_aconn, a, cid)
+    assert after is not None and after.from_number_id is None
+    assert after.from_e164 == before.from_e164  # the history still says which number it used

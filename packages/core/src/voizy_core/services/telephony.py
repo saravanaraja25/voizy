@@ -154,6 +154,20 @@ async def update_assignment(
         return cur.rowcount == 1
 
 
+async def campaign_blockers(
+    conn: AsyncConnection, workspace_id: uuid.UUID, number_id: uuid.UUID
+) -> list[str]:
+    """Names of campaigns that still need this number (draft, running or paused)."""
+    async with owned_tx(conn):
+        await set_local(conn, "app.workspace_id", str(workspace_id))
+        cur = await conn.execute(
+            "SELECT name FROM campaigns WHERE from_number_id = %s "
+            "AND status IN ('draft', 'running', 'paused') ORDER BY name",
+            (number_id,),
+        )
+        return [r[0] for r in await cur.fetchall()]
+
+
 async def delete_number(
     conn: AsyncConnection, workspace_id: uuid.UUID, number_id: uuid.UUID
 ) -> bool:

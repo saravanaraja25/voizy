@@ -383,3 +383,47 @@ async def test_cancel_stops_everything_and_dnc_roundtrip_is_audited(
             "SELECT detail::text, target_id FROM audit_log WHERE action LIKE 'dnc.%'"
         ).fetchall()
     )
+
+
+class Recorder:
+    """Stands in for Twilio or LiveKit and records every call made to it."""
+
+    def __init__(self, log: list[str], prefix: str) -> None:
+        self._log, self._prefix = log, prefix
+
+    def __getattr__(self, name: str):  # type: ignore[no-untyped-def]
+        async def call(*args: object, **kwargs: object) -> str:
+            self._log.append(f"{self._prefix}.{name}")
+            return "x"
+
+        return call
+
+
+async def test_disconnecting_a_number_a_campaign_still_needs_is_refused_without_touching_the_providers(
+    client: httpx.AsyncClient,
+    workspace_a: BootstrapResult,
+    admin: psycopg.Connection,
+    app_settings: Settings,
+) -> None:
+    log: list[str] = []
+    app_settings.telephony_factory = lambda lk, tw: Telephony(
+        twilio=Recorder(log, "twilio"),
+        sip=Recorder(log, "lk"),
+        sip_host="x",
+    )
+    h = bearer(workspace_a.token)
+    agent, number = await setup_workspace(client, h, admin, workspace_a.workspace_id)
+    cid = (await client.post("/v1/campaigns", headers=h, json=new_campaign(agent, number))).json()[
+        "campaign"
+    ]["id"]
+
+    refused = await client.delete(f"/v1/phone-numbers/{number}", headers=h)
+    assert refused.status_code == 409 and "Spring" in refused.json()["detail"]
+    assert log == []  # nothing was removed from Twilio or LiveKit
+    assert (await client.get("/v1/phone-numbers", headers=h)).json()[0]["id"] == number
+
+    await client.post(f"/v1/campaigns/{cid}/cancel", headers=h)
+    assert (await client.delete(f"/v1/phone-numbers/{number}", headers=h)).status_code == 204
+    assert any(entry.startswith("lk.") for entry in log)  # now the providers were cleaned up
+    kept = (await client.get(f"/v1/campaigns/{cid}", headers=h)).json()
+    assert kept["from_number_id"] is None and kept["from_number"].endswith("9999")

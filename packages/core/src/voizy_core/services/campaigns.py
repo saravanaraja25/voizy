@@ -156,7 +156,7 @@ class Campaign:
     name: str
     agent_id: uuid.UUID
     agent_name: str
-    from_number_id: uuid.UUID
+    from_number_id: uuid.UUID | None  # None once the number has been disconnected
     from_e164: str
     status: str
     timezone: str
@@ -196,11 +196,12 @@ class Claim:
 
 
 _CAMPAIGN_COLS = (
-    "c.id, c.name, c.agent_id, a.name, c.from_number_id, n.e164, c.status, c.timezone, "
+    "c.id, c.name, c.agent_id, a.name, c.from_number_id, coalesce(n.e164, c.from_number), "
+    "c.status, c.timezone, "
     "c.days_mask, c.window_start, c.window_end, c.max_concurrent, c.max_attempts, "
     "c.retry_delay_min, c.consent_confirmed_at, c.created_at, c.started_at, c.completed_at "
     "FROM campaigns c JOIN agents a ON a.workspace_id = c.workspace_id AND a.id = c.agent_id "
-    "JOIN phone_numbers n ON n.workspace_id = c.workspace_id AND n.id = c.from_number_id"
+    "LEFT JOIN phone_numbers n ON n.workspace_id = c.workspace_id AND n.id = c.from_number_id"
 )
 _CONTACT_COLS = (
     "ct.id, ct.e164, ct.name, ct.timezone, ct.status, ct.attempts, ct.next_attempt_at, "
@@ -298,14 +299,16 @@ async def create_campaign(
     async with owned_tx(conn):
         await _ws(conn, workspace_id)
         cur = await conn.execute(
-            "INSERT INTO campaigns (workspace_id, name, agent_id, from_number_id, timezone, "
-            "days_mask, window_start, window_end, max_concurrent, max_attempts, retry_delay_min, "
-            "consent_confirmed_at, consent_confirmed_by) "
-            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, now(), %s) RETURNING id",
+            "INSERT INTO campaigns (workspace_id, name, agent_id, from_number_id, from_number, "
+            "timezone, days_mask, window_start, window_end, max_concurrent, max_attempts, "
+            "retry_delay_min, consent_confirmed_at, consent_confirmed_by) "
+            "VALUES (%s, %s, %s, %s, (SELECT e164 FROM phone_numbers WHERE id = %s), "
+            "%s, %s, %s, %s, %s, %s, %s, now(), %s) RETURNING id",
             (
                 workspace_id,
                 name.strip(),
                 agent_id,
+                from_number_id,
                 from_number_id,
                 timezone,
                 days_mask,

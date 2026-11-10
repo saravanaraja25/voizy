@@ -843,9 +843,16 @@
             "type": "string"
           },
           "from_number_id": {
-            "format": "uuid",
-            "title": "From Number Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Number Id"
           },
           "id": {
             "format": "uuid",
